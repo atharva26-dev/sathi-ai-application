@@ -1,0 +1,32 @@
+import { Router } from 'express';
+import { healthRoutes } from './healthRoutes.js';
+import { profileRoutes } from './profileRoutes.js';
+import { businessRoutes } from './businessRoutes.js';
+import { financeRoutes } from './financeRoutes.js';
+import { schemeRoutes } from './schemeRoutes.js';
+import { loanRoutes } from './loanRoutes.js';
+import { marketRoutes } from './marketRoutes.js';
+import { marketingRoutes } from './marketingRoutes.js';
+import { locationRoutes } from './locationRoutes.js';
+import { roadmapRoutes } from './roadmapRoutes.js';
+import { aiRoutes } from './aiRoutes.js';
+import { voiceRoutes } from './voiceRoutes.js';
+import { syncRoutes } from './syncRoutes.js';
+import { authRoutes } from './authRoutes.js';
+
+export const apiRouter = Router();
+
+apiRouter.use(healthRoutes);
+apiRouter.use(authRoutes);
+apiRouter.use(profileRoutes);
+apiRouter.use(locationRoutes);
+apiRouter.use(businessRoutes);
+apiRouter.use(financeRoutes);
+apiRouter.use(schemeRoutes);
+apiRouter.use(loanRoutes);
+apiRouter.use(marketRoutes);
+apiRouter.use(marketingRoutes);
+apiRouter.use(roadmapRoutes);
+apiRouter.use(aiRoutes);
+apiRouter.use(voiceRoutes);
+apiRouter.use(syncRoutes);

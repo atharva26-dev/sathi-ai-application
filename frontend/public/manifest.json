@@ -1,0 +1,20 @@
+{
+  "name": "SAATHI - Rural Business Mentor",
+  "short_name": "SAATHI",
+  "description": "Rural Business Intelligence, Financial Guidance & Mentorship Assistant for Indian Micro-Entrepreneurs",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDFBF7",
+  "theme_color": "#C2410C",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "finance", "education", "productivity"],
+  "lang": "mr-IN"
+}

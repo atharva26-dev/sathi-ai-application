@@ -1,0 +1,152 @@
+# ==============================================================================
+# Production-Grade .gitignore for Saathi Application (Root / Monorepo / Services)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Dependencies
+# ------------------------------------------------------------------------------
+node_modules/
+*/node_modules/
+jspm_packages/
+web_modules/
+.pnp
+.pnp.js
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+
+# ------------------------------------------------------------------------------
+# 2. Environment Variables, Secrets & API Keys
+# ------------------------------------------------------------------------------
+.env
+.env.*
+*.env
+*.env.*
+*.local
+
+# Whitelist environment templates and examples
+!.env.example
+!.env.template
+!.env.sample
+!*/.env.example
+!*/.env.template
+!*/.env.sample
+
+# Certificates, Keys & Credentials
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*.keystore
+*.jks
+*.asc
+id_rsa*
+id_ed25519*
+secrets/
+credentials/
+*service-account*.json
+*firebase-adminsdk*.json
+google-services.json
+GoogleService-Info.plist
+
+# ------------------------------------------------------------------------------
+# 3. Build & Distribution Outputs
+# ------------------------------------------------------------------------------
+dist/
+*/dist/
+build/
+*/build/
+out/
+*/out/
+.next/
+*/.next/
+.nuxt/
+*/.nuxt/
+.output/
+*/.output/
+.vite/
+*/.vite/
+*.tsbuildinfo
+.docusaurus/
+
+# ------------------------------------------------------------------------------
+# 4. Logs & Diagnostics
+# ------------------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ------------------------------------------------------------------------------
+# 5. Caches & Temporary Artifacts
+# ------------------------------------------------------------------------------
+.cache/
+*/.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+.prettiercache
+*.tmp
+*.temp
+tmp/
+temp/
+.temp/
+*/.temp/
+
+# Supabase Local CLI artifacts
+supabase/.temp/
+supabase/.branches/
+.supabase/
+
+# ------------------------------------------------------------------------------
+# 6. Testing & Coverage
+# ------------------------------------------------------------------------------
+coverage/
+*/coverage/
+.nyc_output/
+playwright-report/
+test-results/
+cypress/videos/
+cypress/screenshots/
+
+# ------------------------------------------------------------------------------
+# 7. IDE & Editor Files
+# ------------------------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ------------------------------------------------------------------------------
+# 8. Operating System Artifacts
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+ehthumbs_vista.db
+Thumbs.db
+Thumbs.db:encryptable
+desktop.ini
+$RECYCLE.BIN/

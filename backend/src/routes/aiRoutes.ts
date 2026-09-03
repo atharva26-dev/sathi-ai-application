@@ -1,0 +1,36 @@
+import { Router, Request, Response } from 'express';
+import { z } from 'zod';
+import { validate } from '../middleware/validate.js';
+import { rateLimiter } from '../middleware/rateLimit.js';
+import { aiOrchestrator } from '../ai/orchestrator.js';
+import { sendSuccess } from '../utils/response.js';
+
+import { SUPPORTED_LANGUAGES } from '../config/constants.js';
+
+export const aiRoutes = Router();
+
+const chatMessageSchema = z.object({
+  message: z.string().min(1, 'Message cannot be empty'),
+  language: z.enum(SUPPORTED_LANGUAGES).default('mr'),
+  userId: z.string().optional(),
+  context: z
+    .object({
+      userId: z.string().optional(),
+      capital: z.number().optional(),
+      location: z.string().optional(),
+      businessName: z.string().optional()
+    })
+    .optional()
+});
+
+aiRoutes.post(
+  '/ai/chat',
+  rateLimiter(true), // Strict rate limiter for AI queries
+  validate({ body: chatMessageSchema }),
+  async (req: Request, res: Response) => {
+    const { message, language, context, userId } = req.body;
+    const uid = userId || context?.userId || (req.headers['x-user-id'] as string) || '00000000-0000-0000-0000-000000000001';
+    const response = await aiOrchestrator.handleUserMessage(message, language, context, uid);
+    sendSuccess(res, response, 200, req.id);
+  }
+);

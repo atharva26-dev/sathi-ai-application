@@ -14,7 +14,7 @@
  * 10. Assembles compact, grounded Evidence Package for Gemini.
  */
 
-import { indiaGeographicMaster, LocationResolutionResult } from '../../domain/location/indiaGeographicMaster.js';
+import { indiaGeographicMaster, LocationResolutionResult, MASTER_DISTRICT_REGISTRY } from '../../domain/location/indiaGeographicMaster.js';
 import { STATE_ECONOMIC_PROFILES, StateEconomicProfile } from '../../domain/location/stateKnowledgeLayer.js';
 import { TALUKA_PROFILES_REGISTRY, TalukaProfile } from '../../domain/location/talukaProfiles.js';
 import { BUSINESS_TAXONOMY_ARCHETYPES, BusinessTaxonomyArchetype } from '../../domain/businesses/businessTaxonomy.js';
@@ -32,7 +32,7 @@ import { villageIntelligenceService, VillageIntelligenceRecord } from '../../ser
 export interface LocalEvidencePackage {
   location: LocationResolutionResult;
   businessArchetype: BusinessTaxonomyArchetype;
-  resolvedGranularity: 'Village' | 'Taluka' | 'District' | 'State';
+  resolvedGranularity: 'Village' | 'Taluka' | 'District' | 'State' | 'Unknown';
   geographicTransparencyNotice: {
     mr: string;
     hi: string;
@@ -121,7 +121,7 @@ export class LocalKnowledgeRetriever {
     capitalInput?: number;
     skillsInput?: string[];
   }): Promise<LocalEvidencePackage> {
-    const rawLoc = params.locationInput || 'Palus, Sangli';
+    const rawLoc = params.locationInput?.trim() || '';
     const rawBiz = params.businessInput || 'Mobile & Electronics Repair';
     const cap = params.capitalInput || 50000;
     const skills = params.skillsInput || [];
@@ -131,9 +131,9 @@ export class LocalKnowledgeRetriever {
 
     // 1.5 Retrieve Ground Village Intelligence from Supabase Dataset
     const villageIntel = await villageIntelligenceService.getVillageIntelligence({
-      villageName: location.village,
-      districtName: location.district,
-      subdistrictName: location.subDistrict
+      villageName: location.village !== 'Unknown' && location.village !== 'Local Village' ? location.village : undefined,
+      districtName: location.district !== 'Unknown' && location.district !== 'District' ? location.district : undefined,
+      subdistrictName: location.subDistrict !== 'Unknown' && location.subDistrict !== 'Taluka' ? location.subDistrict : undefined
     });
 
     // 2. Resolve Business Category to Taxonomy Archetype
@@ -164,26 +164,37 @@ export class LocalKnowledgeRetriever {
         }
       };
 
-    // 3. Retrieve Multi-Level Knowledge Layers
-    const stLgd = location.stateLgdCode || 27;
-    const distLgd = location.districtLgdCode || 504;
+    // 3. Retrieve Multi-Level Knowledge Layers dynamically
+    const matchedDist = MASTER_DISTRICT_REGISTRY.find(
+      (d) =>
+        d.canonicalName.toLowerCase() === location.district.toLowerCase() ||
+        d.nameNative.mr?.toLowerCase() === location.district.toLowerCase() ||
+        d.nameNative.hi?.toLowerCase() === location.district.toLowerCase() ||
+        d.aliases.some((a) => a.toLowerCase() === location.district.toLowerCase())
+    );
+    const stLgd = location.stateLgdCode || matchedDist?.stateLgdCode || (location.state === 'Karnataka' ? 29 : location.state === 'Uttar Pradesh' ? 9 : 27);
+    const distLgd = location.districtLgdCode || matchedDist?.lgdCode;
     const subLgd = location.subDistrictLgdCode;
 
-    const stateProfile = STATE_ECONOMIC_PROFILES[stLgd];
+    const stateProfile = stLgd ? STATE_ECONOMIC_PROFILES[stLgd] : undefined;
     const talukaProfile = subLgd ? TALUKA_PROFILES_REGISTRY[subLgd] : undefined;
 
     // 4. Retrieve Official Resource & Market Data
-    const cropStats = DISTRICT_CROP_STATISTICS.filter(
-      (c) => c.districtLgdCode === distLgd || c.districtName.toLowerCase() === location.district.toLowerCase()
-    );
-    const odopRecord = DISTRICT_ODOP_RECORDS[distLgd];
-    const udyamData: DistrictUdyamData | undefined = DISTRICT_UDYAM_REGISTRY[distLgd];
-    const mandiRecords = MANDI_APMC_RECORDS.filter(
-      (m) => m.districtLgdCode === distLgd || m.districtName.toLowerCase() === location.district.toLowerCase()
-    );
+    const cropStats = distLgd
+      ? DISTRICT_CROP_STATISTICS.filter(
+          (c) => c.districtLgdCode === distLgd || c.districtName.toLowerCase() === location.district.toLowerCase()
+        )
+      : [];
+    const odopRecord = distLgd ? DISTRICT_ODOP_RECORDS[distLgd] : undefined;
+    const udyamData: DistrictUdyamData | undefined = distLgd ? DISTRICT_UDYAM_REGISTRY[distLgd] : undefined;
+    const mandiRecords = distLgd
+      ? MANDI_APMC_RECORDS.filter(
+          (m) => m.districtLgdCode === distLgd || m.districtName.toLowerCase() === location.district.toLowerCase()
+        )
+      : [];
 
     // 5. Competition Separation (Formal Udyam vs Estimated Informal)
-    const udyamStatement = formatUdyamCompetitionStatement(distLgd, archetype.sector);
+    const udyamStatement = formatUdyamCompetitionStatement(distLgd || 0, archetype.sector);
     const formalUdyamCount = udyamStatement.registeredCount;
     const informalMultiplier = 2.5;
     const informalEstimatedCount = Math.round(formalUdyamCount * informalMultiplier);

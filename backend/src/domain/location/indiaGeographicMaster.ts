@@ -81,8 +81,9 @@ export interface LocationResolutionResult {
   pincode?: string;
   latitude?: number;
   longitude?: number;
-  resolvedGranularity: 'Village' | 'Taluka' | 'District' | 'State';
+  resolvedGranularity: 'Village' | 'Taluka' | 'District' | 'State' | 'Unknown';
   isAmbiguous: boolean;
+  isUnknown?: boolean;
   ambiguityOptions?: Array<{
     displayName: string;
     village: string;
@@ -462,7 +463,7 @@ export const MASTER_DISTRICT_REGISTRY: MasterDistrictRecord[] = [
     canonicalName: 'Pune',
     nameNative: { en: 'Pune', mr: 'पुणे', hi: 'पुणे' },
     headquarters: 'Pune',
-    aliases: ['Poona', 'पुणे जिल्हा'],
+    aliases: ['Poona', 'पुणे जिल्हा', 'पुण्यात', 'पुण्याचा', 'पुण्याची', 'पुण्याचे', 'पुण्यातील', 'पुण्याला'],
     subDistrictCount: 14
   },
   {
@@ -471,7 +472,7 @@ export const MASTER_DISTRICT_REGISTRY: MasterDistrictRecord[] = [
     canonicalName: 'Satara',
     nameNative: { en: 'Satara', mr: 'सातारा', hi: 'सतारा' },
     headquarters: 'Satara',
-    aliases: ['सातारा जिल्हा'],
+    aliases: ['सातारा जिल्हा', 'साताऱ्यात', 'साताऱ्याचा', 'साताऱ्यातील', 'सातारा जिल्ह्यातील'],
     subDistrictCount: 11
   },
   {
@@ -480,7 +481,7 @@ export const MASTER_DISTRICT_REGISTRY: MasterDistrictRecord[] = [
     canonicalName: 'Kolhapur',
     nameNative: { en: 'Kolhapur', mr: 'कोल्हापूर', hi: 'कोल्हापुर' },
     headquarters: 'Kolhapur',
-    aliases: ['कोल्हापूर जिल्हा'],
+    aliases: ['कोल्हापूर जिल्हा', 'कोल्हापुरात', 'कोल्हापूरचा', 'कोल्हापूरची', 'कोल्हापूरचे', 'कोल्हापूरमध्ये', 'कोल्हापूरला', 'कोल्हापूर जिल्ह्यातील'],
     subDistrictCount: 12
   },
   {
@@ -518,6 +519,132 @@ export const MASTER_DISTRICT_REGISTRY: MasterDistrictRecord[] = [
     headquarters: 'Dharashiv',
     aliases: ['Osmanabad', 'उस्मानाबाद'],
     subDistrictCount: 8
+  },
+  {
+    lgdCode: 500,
+    stateLgdCode: 27,
+    canonicalName: 'Nagpur',
+    nameNative: { en: 'Nagpur', mr: 'नागपूर', hi: 'नागपुर' },
+    headquarters: 'Nagpur',
+    aliases: ['Orange City', 'नागपूर जिल्हा'],
+    subDistrictCount: 14
+  },
+  {
+    lgdCode: 466,
+    stateLgdCode: 27,
+    canonicalName: 'Amravati',
+    nameNative: { en: 'Amravati', mr: 'अमरावती', hi: 'अमरावती' },
+    headquarters: 'Amravati',
+    aliases: ['अमरावती जिल्हा'],
+    subDistrictCount: 14
+  },
+  {
+    lgdCode: 484,
+    stateLgdCode: 27,
+    canonicalName: 'Latur',
+    nameNative: { en: 'Latur', mr: 'लातूर', hi: 'लातुर' },
+    headquarters: 'Latur',
+    aliases: ['लातूर जिल्हा'],
+    subDistrictCount: 10
+  },
+  {
+    lgdCode: 486,
+    stateLgdCode: 27,
+    canonicalName: 'Nanded',
+    nameNative: { en: 'Nanded', mr: 'नांदेड', hi: 'नांदेड़' },
+    headquarters: 'Nanded',
+    aliases: ['नांदेड जिल्हा'],
+    subDistrictCount: 16
+  },
+  {
+    lgdCode: 477,
+    stateLgdCode: 27,
+    canonicalName: 'Jalgaon',
+    nameNative: { en: 'Jalgaon', mr: 'जळगाव', hi: 'जलगांव' },
+    headquarters: 'Jalgaon',
+    aliases: ['जळगाव जिल्हा'],
+    subDistrictCount: 15
+  },
+  {
+    lgdCode: 478,
+    stateLgdCode: 27,
+    canonicalName: 'Jalna',
+    nameNative: { en: 'Jalna', mr: 'जालना', hi: 'जालना' },
+    headquarters: 'Jalna',
+    aliases: ['जालना जिल्हा'],
+    subDistrictCount: 8
+  },
+  {
+    lgdCode: 467,
+    stateLgdCode: 27,
+    canonicalName: 'Beed',
+    nameNative: { en: 'Beed', mr: 'बीड', hi: 'बीड' },
+    headquarters: 'Beed',
+    aliases: ['बीड जिल्हा', 'Bhir'],
+    subDistrictCount: 11
+  },
+  {
+    lgdCode: 491,
+    stateLgdCode: 27,
+    canonicalName: 'Parbhani',
+    nameNative: { en: 'Parbhani', mr: 'परभणी', hi: 'परभणी' },
+    headquarters: 'Parbhani',
+    aliases: ['परभणी जिल्हा'],
+    subDistrictCount: 9
+  },
+  {
+    lgdCode: 495,
+    stateLgdCode: 27,
+    canonicalName: 'Raigad',
+    nameNative: { en: 'Raigad', mr: 'रायगड', hi: 'रायगढ़' },
+    headquarters: 'Alibag',
+    aliases: ['रायगड जिल्हा', 'Alibaug'],
+    subDistrictCount: 15
+  },
+  {
+    lgdCode: 496,
+    stateLgdCode: 27,
+    canonicalName: 'Ratnagiri',
+    nameNative: { en: 'Ratnagiri', mr: 'रत्नागिरी', hi: 'रत्नागिरि' },
+    headquarters: 'Ratnagiri',
+    aliases: ['रत्नागिरी जिल्हा', 'Konkan'],
+    subDistrictCount: 9
+  },
+  {
+    lgdCode: 503,
+    stateLgdCode: 27,
+    canonicalName: 'Sindhudurg',
+    nameNative: { en: 'Sindhudurg', mr: 'सिंधुदुर्ग', hi: 'सिंधुदुर्ग' },
+    headquarters: 'Oros',
+    aliases: ['सिंधुदुर्ग जिल्हा', 'Malvan', 'Kudal'],
+    subDistrictCount: 8
+  },
+  {
+    lgdCode: 506,
+    stateLgdCode: 27,
+    canonicalName: 'Thane',
+    nameNative: { en: 'Thane', mr: 'ठाणे', hi: 'ठाणे' },
+    headquarters: 'Thane',
+    aliases: ['ठाणे जिल्हा'],
+    subDistrictCount: 7
+  },
+  {
+    lgdCode: 664,
+    stateLgdCode: 27,
+    canonicalName: 'Palghar',
+    nameNative: { en: 'Palghar', mr: 'पालघर', hi: 'पालघर' },
+    headquarters: 'Palghar',
+    aliases: ['पालघर जिल्हा'],
+    subDistrictCount: 8
+  },
+  {
+    lgdCode: 485,
+    stateLgdCode: 27,
+    canonicalName: 'Mumbai',
+    nameNative: { en: 'Mumbai', mr: 'मुंबई', hi: 'मुंबई' },
+    headquarters: 'Mumbai',
+    aliases: ['Bombay', 'मुंबई शहर', 'Mumbai Suburban', 'मुंबई उपनगर'],
+    subDistrictCount: 4
   },
 
   // PUNJAB (03)
@@ -637,6 +764,15 @@ export const MASTER_DISTRICT_REGISTRY: MasterDistrictRecord[] = [
 
   // KARNATAKA (29)
   {
+    lgdCode: 529,
+    stateLgdCode: 29,
+    canonicalName: 'Bengaluru Urban',
+    nameNative: { en: 'Bengaluru Urban', mr: 'बेंगळुरू शहर', hi: 'बेंगलुरु शहरी', kn: 'ಬೆಂಗಳೂರು ನಗರ' },
+    headquarters: 'Bengaluru',
+    aliases: ['Bengaluru', 'Bangalore', 'बेंगळुरू', 'बैंगलोर', 'Bangalore Urban'],
+    subDistrictCount: 5
+  },
+  {
     lgdCode: 540,
     stateLgdCode: 29,
     canonicalName: 'Belagavi',
@@ -714,6 +850,20 @@ export const MASTER_SUBDISTRICT_REGISTRY: MasterSubDistrictRecord[] = [
   { lgdCode: 4215, districtLgdCode: 504, stateLgdCode: 27, canonicalName: 'Shirala', nameNative: { en: 'Shirala', mr: 'शिराळा', hi: 'शिराला' }, aliases: ['Shirala Taluka'] },
   { lgdCode: 4216, districtLgdCode: 504, stateLgdCode: 27, canonicalName: 'Kadegaon', nameNative: { en: 'Kadegaon', mr: 'कडेगाव', hi: 'कडेगांव' }, aliases: ['Kadegaon Taluka'] },
 
+  // Kolhapur (505)
+  { lgdCode: 4217, districtLgdCode: 505, stateLgdCode: 27, canonicalName: 'Karvir', nameNative: { en: 'Karvir', mr: 'करवीर', hi: 'करवीर' }, aliases: ['Karvir Taluka', 'Kolhapur City', 'कोल्हापूर', 'करवीर तालुका'] },
+  { lgdCode: 4218, districtLgdCode: 505, stateLgdCode: 27, canonicalName: 'Panhala', nameNative: { en: 'Panhala', mr: 'पन्हाळा', hi: 'पन्हाला' }, aliases: ['Panhala Taluka', 'पन्हाळा तालुका'] },
+  { lgdCode: 4219, districtLgdCode: 505, stateLgdCode: 27, canonicalName: 'Hatkanangle', nameNative: { en: 'Hatkanangle', mr: 'हातकणंगले', hi: 'हातकणंगले' }, aliases: ['Hatkanangale', 'Ichalkaranji', 'इचलकरंजी', 'हातकणंगले तालुका'] },
+  { lgdCode: 4220, districtLgdCode: 505, stateLgdCode: 27, canonicalName: 'Shirol', nameNative: { en: 'Shirol', mr: 'शिरोळ', hi: 'शिरोल' }, aliases: ['Shirol Taluka', 'Jaysingpur', 'जयसिंगपूर', 'शिरोळ तालुका'] },
+  { lgdCode: 4221, districtLgdCode: 505, stateLgdCode: 27, canonicalName: 'Kagal', nameNative: { en: 'Kagal', mr: 'कागल', hi: 'कागल' }, aliases: ['Kagal Taluka', 'कागल तालुका'] },
+  { lgdCode: 4222, districtLgdCode: 505, stateLgdCode: 27, canonicalName: 'Gadhinglaj', nameNative: { en: 'Gadhinglaj', mr: 'गडहिंग्लज', hi: 'गडहिंग्लज' }, aliases: ['Gadhinglaj Taluka', 'गडहिंग्लज तालुका'] },
+  { lgdCode: 4223, districtLgdCode: 505, stateLgdCode: 27, canonicalName: 'Chandgad', nameNative: { en: 'Chandgad', mr: 'चंदगड', hi: 'चंदगढ' }, aliases: ['Chandgad Taluka', 'चंदगड तालुका'] },
+  { lgdCode: 4224, districtLgdCode: 505, stateLgdCode: 27, canonicalName: 'Ajra', nameNative: { en: 'Ajra', mr: 'आजरा', hi: 'आजरा' }, aliases: ['Ajra Taluka', 'आजरा तालुका'] },
+  { lgdCode: 4225, districtLgdCode: 505, stateLgdCode: 27, canonicalName: 'Bhudargad', nameNative: { en: 'Bhudargad', mr: 'भुदरगड', hi: 'भुदरगड' }, aliases: ['Gargoti', 'गारगोटी', 'भुदरगड तालुका'] },
+  { lgdCode: 4226, districtLgdCode: 505, stateLgdCode: 27, canonicalName: 'Radhanagari', nameNative: { en: 'Radhanagari', mr: 'राधानगरी', hi: 'राधानगरी' }, aliases: ['Radhanagari Taluka', 'राधानगरी तालुका'] },
+  { lgdCode: 4227, districtLgdCode: 505, stateLgdCode: 27, canonicalName: 'Bavda', nameNative: { en: 'Bavda', mr: 'गगनबावडा', hi: 'गगनबावड़ा' }, aliases: ['Gaganbavda', 'गगनबावडा तालुका'] },
+  { lgdCode: 4228, districtLgdCode: 505, stateLgdCode: 27, canonicalName: 'Shahuwadi', nameNative: { en: 'Shahuwadi', mr: 'शाहूवाडी', hi: 'शाहूवाडी' }, aliases: ['Malkapur', 'मलकापूर', 'शाहूवाडी तालुका'] },
+
   // Nashik (479)
   { lgdCode: 4140, districtLgdCode: 479, stateLgdCode: 27, canonicalName: 'Nashik', nameNative: { en: 'Nashik', mr: 'नाशिक', hi: 'नासिक' }, aliases: ['Nashik Taluka'] },
   { lgdCode: 4142, districtLgdCode: 479, stateLgdCode: 27, canonicalName: 'Niphad', nameNative: { en: 'Niphad', mr: 'निफाड', hi: 'निफाड़' }, aliases: ['Niphad Taluka', 'Pimpalgaon'] },
@@ -788,6 +938,31 @@ export class IndiaGeographicMaster {
   ];
 
   /**
+   * Safe matching for aliases ensuring aliases are matched as discrete word tokens,
+   * not substrings inside other words (e.g. 'Bengal' must not match 'Bengaluru', 'KA' must not match 'karaycha').
+   */
+  private matchesAlias(textLower: string, alias: string): boolean {
+    if (!alias) return false;
+    const aLower = alias.toLowerCase().trim();
+    const escaped = aLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const suffixGroup = '(?:चा|ची|चे|च्या|त|तील|मध्ये|ला|हून|वरून|कर|करांचा|करांचे)?';
+    const regex = new RegExp(`(?:^|[^a-zA-Z0-9\u0900-\u097F])${escaped}${suffixGroup}(?:[^a-zA-Z0-9\u0900-\u097F]|$)`, 'i');
+    return regex.test(textLower);
+  }
+
+  /**
+   * Safe matching for names ensuring names are matched as discrete word tokens.
+   */
+  private matchesName(textLower: string, name?: string): boolean {
+    if (!name) return false;
+    const nLower = name.toLowerCase().trim();
+    const escaped = nLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const suffixGroup = '(?:चा|ची|चे|च्या|त|तील|मध्ये|ला|हून|वरून|कर|करांचा|करांचे)?';
+    const regex = new RegExp(`(?:^|[^a-zA-Z0-9\u0900-\u097F])${escaped}${suffixGroup}(?:[^a-zA-Z0-9\u0900-\u097F]|$)`, 'i');
+    return regex.test(textLower);
+  }
+
+  /**
    * Cleans conversational natural language into normalized search tokens
    */
   public cleanQueryText(input: string): string {
@@ -801,7 +976,8 @@ export class IndiaGeographicMaster {
 
     let lower = text.toLowerCase();
     for (const filler of this.conversationalFillers) {
-      const regex = new RegExp(`\\b${filler}\\b`, 'gi');
+      const escaped = filler.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(?:^|[^a-zA-Z0-9\u0900-\u097F])${escaped}(?=[^a-zA-Z0-9\u0900-\u097F]|$)`, 'gi');
       lower = lower.replace(regex, ' ');
     }
 
@@ -816,12 +992,13 @@ export class IndiaGeographicMaster {
     if (!rawInput || !rawInput.trim()) {
       return {
         country: 'India',
-        state: 'India',
-        district: 'District',
-        subDistrict: 'Taluka',
-        block: 'Block',
-        village: 'Local Village',
-        resolvedGranularity: 'State',
+        state: 'Unknown',
+        district: 'Unknown',
+        subDistrict: 'Unknown',
+        block: 'Unknown',
+        village: 'Unknown',
+        resolvedGranularity: 'Unknown',
+        isUnknown: true,
         isAmbiguous: false,
         granularityNotice: {
           mr: 'स्थानिक ठिकाण निवडलेले नाही; संपूर्ण देशाच्या सरासरीवर आधारित.',
@@ -833,6 +1010,7 @@ export class IndiaGeographicMaster {
 
     const cleaned = this.cleanQueryText(rawInput);
     const rawLower = rawInput.toLowerCase();
+    const searchTarget = (cleaned + ' ' + rawLower).trim();
 
     // 1. Check Pincode matching (6 digits)
     const pinMatch = rawInput.match(/\b\d{6}\b/);
@@ -846,15 +1024,11 @@ export class IndiaGeographicMaster {
 
     // 2. Village Exact / Alias Match
     const villageMatches = MASTER_VILLAGE_REGISTRY.filter((v) => {
-      const vEn = v.canonicalName.toLowerCase();
-      const vMr = v.nameNative.mr.toLowerCase();
-      const vHi = v.nameNative.hi.toLowerCase();
       return (
-        cleaned.includes(vEn) ||
-        vEn.includes(cleaned) ||
-        cleaned.includes(vMr) ||
-        cleaned.includes(vHi) ||
-        v.aliases.some((a) => rawLower.includes(a.toLowerCase()))
+        this.matchesName(cleaned, v.canonicalName) ||
+        this.matchesName(cleaned, v.nameNative.mr) ||
+        this.matchesName(cleaned, v.nameNative.hi) ||
+        v.aliases.some((a) => this.matchesAlias(rawLower, a))
       );
     });
 
@@ -896,15 +1070,11 @@ export class IndiaGeographicMaster {
 
     // 3. Sub-District / Taluka Match
     const subMatches = MASTER_SUBDISTRICT_REGISTRY.filter((s) => {
-      const sEn = s.canonicalName.toLowerCase();
-      const sMr = s.nameNative.mr.toLowerCase();
-      const sHi = s.nameNative.hi.toLowerCase();
       return (
-        cleaned.includes(sEn) ||
-        sEn.includes(cleaned) ||
-        cleaned.includes(sMr) ||
-        cleaned.includes(sHi) ||
-        s.aliases.some((a) => rawLower.includes(a.toLowerCase()))
+        this.matchesName(cleaned, s.canonicalName) ||
+        this.matchesName(cleaned, s.nameNative.mr) ||
+        this.matchesName(cleaned, s.nameNative.hi) ||
+        s.aliases.some((a) => this.matchesAlias(rawLower, a))
       );
     });
 
@@ -917,8 +1087,8 @@ export class IndiaGeographicMaster {
         country: 'India',
         state: st?.canonicalName || 'Maharashtra',
         stateLgdCode: st?.lgdCode || 27,
-        district: dist?.canonicalName || 'Sangli',
-        districtLgdCode: dist?.lgdCode || 504,
+        district: dist?.canonicalName || 'Kolhapur',
+        districtLgdCode: dist?.lgdCode || 505,
         subDistrict: sub.canonicalName,
         subDistrictLgdCode: sub.lgdCode,
         block: sub.canonicalName,
@@ -936,15 +1106,11 @@ export class IndiaGeographicMaster {
 
     // 4. District Match
     const distMatches = MASTER_DISTRICT_REGISTRY.filter((d) => {
-      const dEn = d.canonicalName.toLowerCase();
-      const dMr = d.nameNative.mr.toLowerCase();
-      const dHi = d.nameNative.hi.toLowerCase();
       return (
-        cleaned.includes(dEn) ||
-        dEn.includes(cleaned) ||
-        cleaned.includes(dMr) ||
-        cleaned.includes(dHi) ||
-        d.aliases.some((a) => rawLower.includes(a.toLowerCase()))
+        this.matchesName(cleaned, d.canonicalName) ||
+        this.matchesName(cleaned, d.nameNative.mr) ||
+        this.matchesName(cleaned, d.nameNative.hi) ||
+        d.aliases.some((a) => this.matchesAlias(rawLower, a))
       );
     });
 
@@ -973,15 +1139,11 @@ export class IndiaGeographicMaster {
 
     // 5. State / UT Match
     const stateMatches = ALL_INDIA_STATES_AND_UTS.filter((s) => {
-      const sEn = s.canonicalName.toLowerCase();
-      const sMr = s.nameNative.mr.toLowerCase();
-      const sHi = s.nameNative.hi.toLowerCase();
       return (
-        cleaned.includes(sEn) ||
-        sEn.includes(cleaned) ||
-        cleaned.includes(sMr) ||
-        cleaned.includes(sHi) ||
-        s.aliases.some((a) => rawLower.includes(a.toLowerCase()))
+        this.matchesName(cleaned, s.canonicalName) ||
+        this.matchesName(cleaned, s.nameNative.mr) ||
+        this.matchesName(cleaned, s.nameNative.hi) ||
+        s.aliases.some((a) => this.matchesAlias(rawLower, a))
       );
     });
 
@@ -993,7 +1155,7 @@ export class IndiaGeographicMaster {
         country: 'India',
         state: st.canonicalName,
         stateLgdCode: st.lgdCode,
-        district: firstDist?.canonicalName || 'District',
+        district: firstDist?.canonicalName || st.capital,
         districtLgdCode: firstDist?.lgdCode,
         subDistrict: 'Sub-District',
         block: 'Block',
@@ -1008,22 +1170,42 @@ export class IndiaGeographicMaster {
       };
     }
 
-    // 6. Transparent Fallback when Location is completely unknown (DO NOT FABRICATE)
+    // 6. Unmatched Query Fallback
+    // If no pincode, village, taluka, district, or state matched, flag as Unknown so non-location queries do not corrupt location state
     return {
       country: 'India',
-      state: 'India',
-      district: cleaned,
-      subDistrict: 'Taluka',
-      block: 'Block',
-      village: cleaned,
-      resolvedGranularity: 'District',
+      state: 'Unknown',
+      district: 'Unknown',
+      subDistrict: 'Unknown',
+      block: 'Unknown',
+      village: 'Unknown',
+      resolvedGranularity: 'Unknown',
+      isUnknown: true,
       isAmbiguous: false,
       granularityNotice: {
-        mr: `'${rawInput}' बाबत विश्वसनीय गाव पातळीवरील आकडेवारी सध्या उपलब्ध नाही. माहिती जिल्हा/राज्य अंदाजावर आधारित आहे.`,
-        hi: `'${rawInput}' के बारे में विश्वसनीय ग्राम-स्तरीय डेटा वर्तमान में उपलब्ध नहीं है।`,
-        en: `Reliable village-level data for '${rawInput}' is currently unavailable. Evidence represents district-level datasets.`
+        mr: `'${rawInput}' बाबत सूक्ष्म ग्रामपातळी डेटा उपलब्ध नाही; प्रत्यक्ष खात्री करावी.`,
+        hi: `'${rawInput}' के लिए सूक्ष्म ग्राम-स्तरीय डेटा उपलब्ध नहीं है; स्थानीय स्तर पर पुष्टि करें।`,
+        en: `Reliable village-level data is unavailable for '${rawInput}'. Specific geographic location could not be verified.`
       }
     };
+  }
+
+  /**
+   * Find canonical state for a given district name
+   */
+  public findStateForDistrict(districtName: string): string {
+    const dLower = (districtName || '').toLowerCase().trim();
+    const match = MASTER_DISTRICT_REGISTRY.find((d) =>
+      d.canonicalName.toLowerCase() === dLower ||
+      d.nameNative.mr?.toLowerCase() === dLower ||
+      d.nameNative.hi?.toLowerCase() === dLower ||
+      d.aliases.some((a) => a.toLowerCase() === dLower)
+    );
+    if (match) {
+      const st = ALL_INDIA_STATES_AND_UTS.find((s) => s.lgdCode === match.stateLgdCode);
+      return st?.canonicalName || 'Maharashtra';
+    }
+    return 'Maharashtra';
   }
 
   private buildResolvedFromVillage(v: MasterVillageRecord): LocationResolutionResult {

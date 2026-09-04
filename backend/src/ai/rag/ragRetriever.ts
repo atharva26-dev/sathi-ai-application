@@ -50,23 +50,61 @@ const CROSS_LINGUAL_EXPANSIONS: Record<string, string[]> = {
   'दुकानदार': ['retailer', 'trader', 'entrepreneur', 'merchant'],
   'बाजार': ['market', 'mandi', 'demand', 'customer', 'commercial'],
   'गाव': ['village', 'rural', 'gram', 'panchayat', 'community'],
+  'ग्रामीण': ['rural', 'village', 'grassroots', 'agriculture', 'community', 'development'],
+  'व्यवसाय': ['business', 'enterprise', 'model', 'entrepreneur', 'industry', 'venture'],
+  'उद्योग': ['industry', 'enterprise', 'msme', 'business', 'manufacturing'],
+  'संधी': ['opportunity', 'potential', 'growth', 'market', 'demand', 'feasibility'],
+  'प्रकल्प': ['project', 'setup', 'plan', 'feasibility', 'profile'],
+  'कोल्हापूर': ['kolhapur', 'maharashtra', 'market', 'agriculture', 'enterprise'],
 
-  // Finance, Capital, Loans
-  'भांडवल': ['capital', 'investment', 'working', 'cashflow', 'funds'],
+  // Finance, Capital, Loans & EMI
+  'भांडवल': ['capital', 'investment', 'working', 'cashflow', 'funds', 'budget'],
+  'भांडवला': ['capital', 'investment', 'finance', 'project', 'cost'],
+  'गुंतवणूक': ['investment', 'capital', 'allocation', 'returns'],
   'पूंजी': ['capital', 'liquidity', 'working', 'finance'],
-  'कर्ज': ['loan', 'credit', 'debt', 'repayment', 'emi', 'mudra'],
-  'नफा': ['profit', 'margin', 'returns', 'net', 'viability'],
-  'तोटा': ['loss', 'deficit', 'break-even', 'risk'],
-  'खर्च': ['cost', 'expenditure', 'operational', 'overhead'],
-  'योजना': ['scheme', 'subsidy', 'government', 'pmegp', 'credit'],
-  'सबसिडी': ['subsidy', 'grant', 'margin', 'incentive'],
+  'कर्ज': ['loan', 'credit', 'debt', 'repayment', 'emi', 'mudra', 'pmegp'],
+  'लोन': ['loan', 'credit', 'mudra', 'bank', 'subsidy'],
+  'हप्ता': ['emi', 'loan', 'repayment', 'tenure', 'installment'],
+  'किस्त': ['emi', 'loan', 'repayment', 'installment'],
+  'नफा': ['profit', 'margin', 'returns', 'net', 'viability', 'breakeven'],
+  'तोटा': ['loss', 'deficit', 'break-even', 'risk', 'buffer'],
+  'खर्च': ['cost', 'expenditure', 'operational', 'overhead', 'fixed'],
+  'मार्जिन': ['margin', 'profit', 'markup', 'gross', 'pricing'],
+  'योजना': ['scheme', 'subsidy', 'government', 'pmegp', 'credit', 'mudra'],
+  'सबसिडी': ['subsidy', 'grant', 'margin', 'incentive', 'pmegp'],
 
-  // Risk, Supply Chain & Operations
+  // Competition, Customers & Marketing
+  'स्पर्धक': ['competitor', 'competition', 'market', 'pricing', 'differentiation'],
+  'स्पर्धा': ['competition', 'competitor', 'saturation', 'market', 'strategy'],
+  'कंपिटिशन': ['competition', 'competitor', 'market', 'rivalry'],
+  'ग्राहक': ['customer', 'consumer', 'footfall', 'demand', 'client', 'walkin'],
+  'ग्राहकांना': ['customer', 'retention', 'acquisition', 'marketing', 'service'],
+  'विक्री': ['sales', 'marketing', 'distribution', 'revenue', 'turnover'],
+
+  // Working Capital & Credit / Udhari
+  'उधारी': ['credit', 'working', 'liquidity', 'cashflow', 'receivables', 'dues'],
+  'खेळते भांडवल': ['working', 'capital', 'liquidity', 'buffer', 'operating', 'cash'],
+  'क्रेडिट': ['credit', 'working', 'liquidity', 'advance'],
+
+  // Setup, Execution & Licensing
+  'कसा': ['setup', 'steps', 'feasibility', 'strategy', 'execution'],
+  'कशी': ['setup', 'feasibility', 'strategy', 'plan'],
+  'करायचा': ['setup', 'business', 'process', 'steps', 'licensing'],
+  'सुरू': ['start', 'setup', 'launch', 'investment', 'checklist'],
+  'सुरुवात': ['start', 'initiation', 'foundation', 'setup'],
+  'परवाना': ['license', 'registration', 'compliance', 'fssai', 'udyam', 'shopact'],
+  'लायसन्स': ['license', 'registration', 'permit', 'gst', 'fssai'],
+  'कागदपत्रे': ['documents', 'eligibility', 'kyc', 'application', 'subsidy'],
+
+  // Sectors & Value Chains
+  'डेअरी': ['dairy', 'milk', 'chilling', 'cattle', 'fodder', 'livestock'],
+  'दुग्ध': ['dairy', 'milk', 'processing', 'pasteurization', 'buffalo'],
+  'किराणा': ['grocery', 'kirana', 'retail', 'fmcg', 'inventory', 'store'],
+  'गिरणी': ['flour', 'mill', 'grinding', 'grains', 'processing'],
+  'आटा चक्की': ['flour', 'mill', 'grinding', 'processing', 'power'],
   'जोखीम': ['risk', 'uncertainty', 'volatility', 'mitigation'],
   'कच्चा माल': ['raw', 'materials', 'procurement', 'supplier', 'inventory'],
   'सप्लायर': ['supplier', 'vendor', 'wholesaler', 'procurement'],
-  'विक्री': ['sales', 'marketing', 'distribution', 'revenue'],
-  'ग्राहक': ['customer', 'consumer', 'footfall', 'demand', 'client'],
   'शेतकरी': ['farmer', 'agriculture', 'produce', 'rural'],
   'शेती': ['agriculture', 'agri-business', 'crop', 'farming', 'processing']
 };
@@ -95,7 +133,9 @@ export class RagRetriever {
         path.resolve(process.cwd(), 'src/ai/rag/advisoryKnowledgeIndex.json'),
         path.resolve(process.cwd(), 'backend/src/ai/rag/advisoryKnowledgeIndex.json'),
         path.resolve(process.cwd(), 'dist/ai/rag/advisoryKnowledgeIndex.json'),
-        path.resolve(__dirname, 'advisoryKnowledgeIndex.json')
+        path.resolve(__dirname, 'advisoryKnowledgeIndex.json'),
+        path.resolve(__dirname, '../../../src/ai/rag/advisoryKnowledgeIndex.json'),
+        path.resolve(__dirname, '../../src/ai/rag/advisoryKnowledgeIndex.json')
       ];
 
       let indexPath = '';
@@ -133,9 +173,13 @@ export class RagRetriever {
 
   /**
    * Expand input query with cross-lingual and domain synonyms
+   * Uses Unicode punctuation splitting to properly support Devanagari and English words
    */
   private expandQuery(query: string): string[] {
-    const rawTerms = (query || '').toLowerCase().match(/\b[\p{L}0-9]{2,}\b/gu) || [];
+    const rawTerms = (query || '')
+      .toLowerCase()
+      .split(/[\s,?.!;:()"'/\\+\-–—«»[\]{}]+/)
+      .filter((w) => w.length >= 2);
     const expanded = new Set<string>();
 
     for (const term of rawTerms) {

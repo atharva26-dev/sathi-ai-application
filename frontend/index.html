@@ -5,26 +5,100 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
     
     <!-- Primary Meta Tags -->
-    <title>SAATHI - ग्रामीण व्यवसाय मार्गदर्शक आणि आर्थिक सहाय्यक | Rural Business Intelligence</title>
-    <meta name="title" content="SAATHI - ग्रामीण व्यवसाय मार्गदर्शक आणि आर्थिक सहाय्यक | Rural Business Intelligence" />
-    <meta name="description" content="SAATHI: Voice-first rural business intelligence, financial guidance, and mentorship platform empowering first-time micro-entrepreneurs across rural and semi-urban India." />
-    <meta name="theme-color" content="#C2410C" />
+    <title>Vyapar Saathi (व्यापार साथी) - Aapka Business, Hamara Saath</title>
+    <meta name="title" content="Vyapar Saathi (व्यापार साथी) - Aapka Business, Hamara Saath" />
+    <meta name="description" content="Vyapar Saathi: Multilingual AI-powered rural business intelligence, financial guidance, and mentorship platform for Indian micro-entrepreneurs." />
+    <meta name="theme-color" content="#1E3A8A" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="SAATHI" />
+    <meta name="apple-mobile-web-app-title" content="Vyapar Saathi" />
     
-    <!-- PWA Manifest -->
+    <!-- PWA Manifest & App Icons -->
     <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-    <link rel="apple-touch-icon" href="/logo.svg" />
+    <link rel="icon" type="image/png" href="/vyapar-saathi-logo.png" />
+    <link rel="apple-touch-icon" href="/vyapar-saathi-logo.png" />
 
     <!-- Google Fonts: Noto Sans Devanagari & Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    
+    <style>
+      /* Initial Pre-Hydration Splash Screen */
+      #initial-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #F8FAFC;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        z-index: 9999;
+        text-align: center;
+        padding: 24px;
+      }
+      .splash-logo-card {
+        width: 110px;
+        height: 110px;
+        border-radius: 28px;
+        background: #FFFFFF;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+        border: 2px solid rgba(13, 148, 136, 0.25);
+        animation: splash-pulse 2s ease-in-out infinite;
+      }
+      .splash-logo-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .splash-title {
+        font-size: 24px;
+        font-weight: 800;
+        color: #0F172A;
+        margin-top: 20px;
+        margin-bottom: 4px;
+        letter-spacing: -0.02em;
+      }
+      .splash-tagline {
+        font-size: 14px;
+        font-weight: 600;
+        color: #0D9488;
+        margin-bottom: 24px;
+      }
+      .splash-spinner {
+        width: 36px;
+        height: 36px;
+        border: 3px solid rgba(13, 148, 136, 0.2);
+        border-top-color: #0D9488;
+        border-radius: 50%;
+        animation: splash-spin 0.8s linear infinite;
+      }
+      @keyframes splash-spin {
+        to { transform: rotate(360deg); }
+      }
+      @keyframes splash-pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.04); }
+      }
+    </style>
   </head>
   <body class="theme-light">
-    <div id="root"></div>
+    <div id="root">
+      <!-- Pre-Hydration Branded Splash Screen -->
+      <div id="initial-splash">
+        <div class="splash-logo-card">
+          <img src="/vyapar-saathi-logo.png" alt="Vyapar Saathi Logo" />
+        </div>
+        <div class="splash-title">Vyapar Saathi (व्यापार साथी)</div>
+        <div class="splash-tagline">Aapka Business, Hamara Saath</div>
+        <div class="splash-spinner"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

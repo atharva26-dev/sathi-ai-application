@@ -8,8 +8,8 @@ export const authRoutes = Router();
 
 const registerSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
-  mobile: z.string().min(10, 'Mobile must be at least 10 digits'),
-  pin: z.string().min(4, 'PIN/Password must be at least 4 digits'),
+  mobile: z.string().regex(/^\d{10}$/, 'Mobile must be exactly 10 digits'),
+  pin: z.string().regex(/^\d{4}$/, 'PIN must be exactly 4 digits'),
   preferredLanguage: z.string().optional().default('mr'),
   village: z.string().optional(),
   block: z.string().optional(),
@@ -22,8 +22,8 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  mobile: z.string().min(10, 'Mobile must be at least 10 digits'),
-  pin: z.string().min(4, 'PIN/Password must be at least 4 digits')
+  mobile: z.string().regex(/^\d{10}$/, 'Mobile must be exactly 10 digits'),
+  pin: z.string().regex(/^\d{4}$/, 'PIN must be exactly 4 digits')
 });
 
 authRoutes.post(
@@ -51,7 +51,8 @@ authRoutes.post(
       }
       sendSuccess(res, result, 200, req.id);
     } catch (err: any) {
-      sendError(res, 'LOGIN_FAILED', err.message, 400, {}, req.id);
+      const isPinError = err.message && (err.message.includes('पिन') || err.message.includes('PIN'));
+      sendError(res, isPinError ? 'INVALID_PIN' : 'LOGIN_FAILED', err.message, isPinError ? 401 : 400, {}, req.id);
     }
   }
 );

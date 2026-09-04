@@ -53,6 +53,53 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   return (
     <div className="screen-content animate-fade-in" style={{ padding: '16px' }}>
+      {/* Brand Identity Card */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '12px 14px',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '18px',
+          border: '1.5px solid rgba(13, 148, 136, 0.2)',
+          boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)',
+          marginBottom: '16px'
+        }}
+      >
+        <div
+          style={{
+            width: '46px',
+            height: '46px',
+            borderRadius: '12px',
+            backgroundColor: '#F8FAFC',
+            border: '1px solid var(--border-light)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '3px',
+            flexShrink: 0
+          }}
+        >
+          <img
+            src="/vyapar-saathi-logo.png"
+            alt="Vyapar Saathi Logo"
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Vyapar Saathi</span>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0D9488', backgroundColor: 'rgba(13, 148, 136, 0.1)', padding: '2px 8px', borderRadius: '12px' }}>
+              व्यापार साथी
+            </span>
+          </div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '2px' }}>
+            Aapka Business, Hamara Saath
+          </div>
+        </div>
+      </div>
+
       {/* Personalized Header */}
       <div style={{ marginBottom: '18px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>

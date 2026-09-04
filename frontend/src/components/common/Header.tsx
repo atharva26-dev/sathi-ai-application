@@ -51,49 +51,56 @@ export const Header: React.FC<HeaderProps> = ({
           minHeight: 'var(--header-height)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
-          {showBack ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+          {showBack && (
             <button
               onClick={onBack}
               aria-label="मागे जा"
               style={{
-                width: '40px',
-                height: '40px',
+                width: '38px',
+                height: '38px',
                 borderRadius: '12px',
                 backgroundColor: 'var(--bg-card-subtle)',
                 border: '1px solid var(--border-medium)',
                 color: 'var(--text-primary)',
-                flexShrink: 0
-              }}
-            >
-              <ArrowLeft size={20} />
-            </button>
-          ) : (
-            <div
-              style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '14px',
-                backgroundColor: 'var(--primary-subtle)',
+                flexShrink: 0,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                flexShrink: 0,
-                border: '1.5px solid rgba(194, 65, 12, 0.2)'
+                cursor: 'pointer'
               }}
             >
-              <img
-                src="/logo.svg"
-                alt="SAATHI Logo"
-                style={{ width: '28px', height: '28px', objectFit: 'contain' }}
-              />
-            </div>
+              <ArrowLeft size={18} />
+            </button>
           )}
+
+          <div
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '12px',
+              backgroundColor: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              border: '1.5px solid rgba(13, 148, 136, 0.25)',
+              boxShadow: '0 2px 8px rgba(15, 23, 42, 0.08)',
+              overflow: 'hidden',
+              padding: '2px'
+            }}
+          >
+            <img
+              src="/vyapar-saathi-logo.png"
+              alt="Vyapar Saathi Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          </div>
 
           <div style={{ minWidth: 0, overflow: 'hidden' }}>
             <h1
               style={{
-                fontSize: title ? '1.15rem' : '1.25rem',
+                fontSize: title ? '1.1rem' : '1.25rem',
                 fontWeight: 800,
                 color: 'var(--primary-dark)',
                 letterSpacing: '-0.01em',
@@ -102,18 +109,19 @@ export const Header: React.FC<HeaderProps> = ({
                 textOverflow: 'ellipsis'
               }}
             >
-              {title || 'SAATHI साथी'}
+              {title || 'Vyapar Saathi व्यापार साथी'}
             </h1>
             <p
               style={{
-                fontSize: '0.78rem',
+                fontSize: '0.76rem',
                 color: 'var(--text-muted)',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
-                textOverflow: 'ellipsis'
+                textOverflow: 'ellipsis',
+                fontWeight: 600
               }}
             >
-              {subtitle || (profile.name ? `${profile.name} • ${profile.village || 'बारामती'}` : t.common.tagline)}
+              {subtitle || (profile.name ? `${profile.name} • ${profile.village || 'बारामती'}` : 'Aapka Business, Hamara Saath')}
             </p>
           </div>
         </div>

@@ -24,11 +24,11 @@ export const DEMO_PROFILE: UserProfile = {
   isDemo: true
 };
 
-const DEFAULT_PROFILE: UserProfile = {
-  id: 'usr_init',
+export const createBlankProfile = (mobile = ''): UserProfile => ({
+  id: 'usr_' + Date.now(),
   name: '',
   age: undefined,
-  mobile: '',
+  mobile: mobile.replace(/\D/g, '').slice(-10),
   village: '',
   block: '',
   district: '',
@@ -40,34 +40,51 @@ const DEFAULT_PROFILE: UserProfile = {
   availableAssets: [],
   existingBusiness: '',
   businessGoals: '',
-  preferredLanguage: 'en',
+  preferredLanguage: 'mr',
   isOnboarded: false,
   isDemo: false
-};
+});
 
 export const profileService = {
   getProfile(): UserProfile {
-    return storageService.get<UserProfile>(PROFILE_KEY, DEFAULT_PROFILE);
+    const activeMobile = storageService.getActiveUser();
+    const fallback = activeMobile === '9822345678' ? DEMO_PROFILE : createBlankProfile(activeMobile || '');
+    const profile = storageService.get<UserProfile>(PROFILE_KEY, fallback);
+    if (activeMobile && !profile.mobile) {
+      profile.mobile = activeMobile;
+    }
+    return profile;
   },
 
   saveProfile(profile: Partial<UserProfile>): UserProfile {
+    const activeMobile = storageService.getActiveUser();
     const current = this.getProfile();
     const updated: UserProfile = {
       ...current,
       ...profile,
-      id: current.id === 'usr_init' ? 'usr_' + Date.now() : current.id
+      mobile: profile.mobile ? profile.mobile.replace(/\D/g, '').slice(-10) : (current.mobile || activeMobile || ''),
+      id: current.id === 'usr_init' ? 'usr_' + Date.now() : (current.id || 'usr_' + Date.now())
     };
+
+    // Ensure active user is kept in sync if mobile is present
+    if (updated.mobile && updated.mobile.length === 10 && updated.mobile !== activeMobile) {
+      storageService.setActiveUser(updated.mobile);
+    }
+
     storageService.set(PROFILE_KEY, updated);
     return updated;
   },
 
   loadDemoProfile(): UserProfile {
+    storageService.setActiveUser('9822345678');
     storageService.set(PROFILE_KEY, DEMO_PROFILE);
     return DEMO_PROFILE;
   },
 
   resetProfile(): UserProfile {
-    storageService.set(PROFILE_KEY, DEFAULT_PROFILE);
-    return DEFAULT_PROFILE;
+    const activeMobile = storageService.getActiveUser();
+    const blank = createBlankProfile(activeMobile || '');
+    storageService.set(PROFILE_KEY, blank);
+    return blank;
   }
 };

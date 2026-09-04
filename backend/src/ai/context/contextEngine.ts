@@ -3,6 +3,7 @@ import { financeTools } from '../tools/financeTools.js';
 import { evaluateGovernmentSchemes } from '../../domain/schemes/schemeEvaluator.js';
 import { normalizeBusinessCategory, BusinessArchetype } from '../../domain/businesses/businessCatalog.js';
 import { lgdLocationService } from '../../domain/location/lgdLocationService.js';
+import { indiaGeographicMaster } from '../../domain/location/indiaGeographicMaster.js';
 import { getLocalized } from '../skills/skillTypes.js';
 import { localKnowledgeRetriever, LocalEvidencePackage } from './localKnowledgeRetriever.js';
 
@@ -32,31 +33,54 @@ export interface AssembledBusinessContext {
     topCompetitorOverview: string;
   };
   schemes: Array<{ id: string; name: string; subsidyPercent: number }>;
-  activeConversationState: {
+  activeConversationState?: {
     lastIntent?: string;
     selectedBusiness?: string;
+    lastLocation?: string;
     previousDecisions: string[];
   };
 }
 
 export class ContextEngine {
-  private memoryStore = new Map<string, { lastIntent?: string; selectedBusiness?: string; previousDecisions: string[] }>();
+  private memoryStore = new Map<string, { lastIntent?: string; selectedBusiness?: string; lastLocation?: string; previousDecisions: string[] }>();
+
+  public getMemory(userId: string) {
+    return this.memoryStore.get(userId);
+  }
 
   public async getContextForUser(
     userId: string,
     overrides?: { capital?: number; location?: string; businessName?: string }
   ): Promise<AssembledBusinessContext> {
     const profile = await profileService.getProfile(userId);
+    const userMemory = this.memoryStore.get(userId) || {
+      selectedBusiness: overrides?.businessName || profile.desiredBusiness || 'Mobile & Electronics Repair',
+      previousDecisions: []
+    };
 
     const ownCapital = overrides?.capital || profile.ownCapital || 50000;
-    const rawLoc = overrides?.location || (profile.village ? `${profile.village}, ${profile.block || profile.district || ''}` : '');
-    const resolvedLoc = lgdLocationService.resolveLocationHierarchy(rawLoc) || {
-      village: profile.village || 'Local Area',
-      subDistrict: profile.block || 'Sub-District',
-      block: profile.block || 'Block',
-      district: profile.district || 'District',
-      state: profile.state || 'India'
-    };
+    const rawLoc =
+      overrides?.location ||
+      userMemory.lastLocation ||
+      (profile.village ? `${profile.village}, ${profile.block || profile.district || ''}` : '');
+
+    const geoLoc = rawLoc ? indiaGeographicMaster.resolveLocation(rawLoc) : null;
+    const resolvedLoc =
+      geoLoc && !geoLoc.isUnknown && geoLoc.resolvedGranularity !== 'Unknown'
+        ? {
+            village: geoLoc.village,
+            subDistrict: geoLoc.subDistrict,
+            block: geoLoc.block,
+            district: geoLoc.district,
+            state: geoLoc.state
+          }
+        : lgdLocationService.resolveLocationHierarchy(rawLoc) || {
+            village: profile.village || 'स्थानिक परिसर',
+            subDistrict: profile.block || 'स्थानिक तालुका',
+            block: profile.block || 'स्थानिक ब्लॉक',
+            district: profile.district || 'स्थानिक जिल्हा',
+            state: profile.state || 'भारत'
+          };
     const locationCluster = `${resolvedLoc.village}, ${resolvedLoc.district}, ${resolvedLoc.state}`;
 
     const rawBiz = overrides?.businessName || profile.desiredBusiness || 'Mobile & Electronics Repair';
@@ -105,10 +129,9 @@ export class ContextEngine {
       skillsInput: profile.skills || []
     });
 
-    const userMemory = this.memoryStore.get(userId) || {
-      selectedBusiness: rawBiz,
-      previousDecisions: [`१०% स्वतःचे भांडवल (₹${ownCapital.toLocaleString('en-IN')}) निश्चित केले`]
-    };
+    if (userMemory.previousDecisions.length === 0) {
+      userMemory.previousDecisions.push(`१०% स्वतःचे भांडवल (₹${ownCapital.toLocaleString('en-IN')}) निश्चित केले`);
+    }
 
     return {
       profile: {
@@ -166,10 +189,14 @@ export class ContextEngine {
     };
   }
 
-  public updateMemory(userId: string, updates: { lastIntent?: string; selectedBusiness?: string; decision?: string }) {
+  public updateMemory(
+    userId: string,
+    updates: { lastIntent?: string; selectedBusiness?: string; lastLocation?: string; decision?: string }
+  ) {
     const current = this.memoryStore.get(userId) || { previousDecisions: [] };
     if (updates.lastIntent) current.lastIntent = updates.lastIntent;
     if (updates.selectedBusiness) current.selectedBusiness = updates.selectedBusiness;
+    if (updates.lastLocation) current.lastLocation = updates.lastLocation;
     if (updates.decision && !current.previousDecisions.includes(updates.decision)) {
       current.previousDecisions.push(updates.decision);
     }

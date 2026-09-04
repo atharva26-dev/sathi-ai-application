@@ -1,17 +1,17 @@
 {
-  "name": "SAATHI - Rural Business Mentor",
-  "short_name": "SAATHI",
+  "name": "Vyapar Saathi - Aapka Business, Hamara Saath",
+  "short_name": "Vyapar Saathi",
   "description": "Rural Business Intelligence, Financial Guidance & Mentorship Assistant for Indian Micro-Entrepreneurs",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FDFBF7",
-  "theme_color": "#C2410C",
+  "background_color": "#F8FAFC",
+  "theme_color": "#1E3A8A",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/logo.svg",
+      "src": "/vyapar-saathi-logo.png",
       "sizes": "192x192 512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],

@@ -115,6 +115,12 @@ export const conversationService = {
     history.push(userMsg);
     this.saveMessages(lang, history);
 
+    // Prepare previous history for follow-up conversational context (last 6 messages prior to this user message)
+    const priorHistory = history.slice(0, -1).slice(-6).map((m) => ({
+      role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
+      content: m.text
+    }));
+
     // Attempt live backend AI orchestrator dispatch
     try {
       const response = await fetch(`${API_BASE_URL}/ai/chat`, {
@@ -124,10 +130,11 @@ export const conversationService = {
           message: userText,
           language: lang,
           userId: profile.id,
+          history: priorHistory,
           context: {
             userId: profile.id,
             capital: profile.ownCapital || 50000,
-            location: profile.village ? `${profile.village}, ${profile.block || profile.district || ''}` : 'Local Area',
+            location: [profile.village, profile.block, profile.district, profile.state].filter(Boolean).join(', ') || undefined,
             businessName: profile.desiredBusiness || 'Mobile & Electronics Repair',
             riskAppetite: profile.riskAppetite || 'MODERATE',
             liveAreaContext: liveAreaContext || undefined
@@ -169,10 +176,31 @@ export const conversationService = {
     if (qLower.includes('emi') || qLower.includes('हप्ता') || qLower.includes('किस्त') || qLower.includes('loan')) {
       fallbackText =
         lang === 'mr'
-          ? `तुमच्या ₹${cap.toLocaleString('en-IN')} स्वतःच्या भांडवलावर PS-91 मॉडेलनुसार ₹${projCost.toLocaleString('en-IN')} चा प्रकल्प तयार होतो. यामध्ये ₹${loan.toLocaleString('en-IN')} चे कर्ज आणि ३५% PMEGP सबसिडी शक्य आहे.`
+          ? `तुमच्या ₹${cap.toLocaleString('en-IN')} स्वतःच्या भांडवलावर PS-91 मॉडेलनुसार ₹${projCost.toLocaleString('en-IN')} चा प्रकल्प तयार होतो. यामध्ये ₹${loan.toLocaleString('en-IN')} चे कर्ज आणि ३५% PMEGP सबसिडी शक्य आहे. मासिक हप्ता (EMI) साधारण ₹${Math.round(loan * 0.015).toLocaleString('en-IN')} राहील.`
           : lang === 'hi'
-          ? `आपकी ₹${cap.toLocaleString('en-IN')} पूंजी पर PS-91 मॉडल के अनुसार ₹${projCost.toLocaleString('en-IN')} का प्रोजेक्ट बनता है, जिसमें ₹${loan.toLocaleString('en-IN')} का ऋण और ३५% PMEGP सब्सिडी मिल सकती है।`
-          : `Based on your ₹${cap.toLocaleString('en-IN')} own capital, PS-91 structuring creates a ₹${projCost.toLocaleString('en-IN')} project capacity with ₹${loan.toLocaleString('en-IN')} loan component and up to 35% PMEGP subsidy.`;
+          ? `आपकी ₹${cap.toLocaleString('en-IN')} पूंजी पर PS-91 मॉडल के अनुसार ₹${projCost.toLocaleString('en-IN')} का प्रोजेक्ट बनता है, जिसमें ₹${loan.toLocaleString('en-IN')} का ऋण और ३५% PMEGP सब्सिडी मिल सकती है। मासिक EMI लगभग ₹${Math.round(loan * 0.015).toLocaleString('en-IN')} होगी।`
+          : `Based on your ₹${cap.toLocaleString('en-IN')} own capital, PS-91 structuring creates a ₹${projCost.toLocaleString('en-IN')} project capacity with ₹${loan.toLocaleString('en-IN')} loan component and up to 35% PMEGP subsidy. Monthly EMI is estimated at ₹${Math.round(loan * 0.015).toLocaleString('en-IN')}.`;
+    } else if (qLower.includes('भांडवल') || qLower.includes('capital') || qLower.includes('पैसा') || qLower.includes('पूंजी')) {
+      fallbackText =
+        lang === 'mr'
+          ? `तुमच्या ${loc} मधील '${biz}' व्यवसायासाठी स्वतःचे भांडवल ₹${cap.toLocaleString('en-IN')} पुरेसे आहे. यातून ६०% स्थिर मालमत्ता व साधनांवर, तर किमान ४०% खेळते भांडवल (Working Capital Buffer) म्हणून सुरक्षित ठेवावे.`
+          : lang === 'hi'
+          ? `आपके ${loc} में '${biz}' व्यापार के लिए ₹${cap.toLocaleString('en-IN')} की अपनी पूंजी पर्याप्त है। इसमें से 60% उपकरणों पर तथा न्यूनतम 40% कार्यशील पूंजी (Working Capital) के रूप में सुरक्षित रखें।`
+          : `For your '${biz}' business in ${loc}, your ₹${cap.toLocaleString('en-IN')} capital is adequate. Allocate 60% to essential equipment and preserve 40% as liquid working capital buffer.`;
+    } else if (qLower.includes('स्पर्धक') || qLower.includes('competitor') || qLower.includes('स्पर्धा') || qLower.includes('दुकाने')) {
+      fallbackText =
+        lang === 'mr'
+          ? `${loc} परिसरात स्पर्धकांशी मुकाबला करण्यासाठी भाव कमी करण्याऐवजी तत्पर सेवा, योग्य तोलमाप आणि विश्वासावर भर द्या. सुरुवातीला उधारी न देणे हाच सर्वात मोठा फायदा ठरेल.`
+          : lang === 'hi'
+          ? `${loc} में प्रतिस्पर्धियों से निपटने के लिए मूल्य घटाने के बजाय त्वरित सेवा, गुणवत्ता और विश्वसनीयता पर ध्यान दें। प्रारंभिक दौर में नकद बिक्री सबसे बड़ा लाभ देगी।`
+          : `To handle competitors in ${loc}, focus on service speed, transparent dealings, and trust rather than aggressive price cutting. Strictly maintain cash-first transactions.`;
+    } else if (qLower.includes('नफा') || qLower.includes('profit') || qLower.includes('मार्जिन') || qLower.includes('कमाई')) {
+      fallbackText =
+        lang === 'mr'
+          ? `'${biz}' व्यवसायात सरासरी १८% ते २५% ग्रॉस मार्जिन मिळते. सर्व स्थिर खर्च व वीज/वाहतूक वजा जाता महिना अखेरीस साधारण ₹२२,००० ते ₹३५,००० निव्वळ नफा शक्य आहे.`
+          : lang === 'hi'
+          ? `'${biz}' व्यापार में सामान्यतः 18% से 25% सकल मार्जिन मिलता है। सभी निश्चित खर्च घटाने के बाद लगभग ₹22,000 से ₹35,000 शुद्ध मासिक लाभ प्राप्त किया जा सकता है।`
+          : `The typical gross margin in '${biz}' is 18% to 25%. After deducting overheads, transport, and utilities, expect a net monthly return of approximately ₹22,000 to ₹35,000.`;
     } else {
       fallbackText =
         lang === 'mr'

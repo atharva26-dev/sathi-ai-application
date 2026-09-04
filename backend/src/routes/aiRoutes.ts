@@ -13,6 +13,14 @@ const chatMessageSchema = z.object({
   message: z.string().min(1, 'Message cannot be empty'),
   language: z.enum(SUPPORTED_LANGUAGES).default('mr'),
   userId: z.string().optional(),
+  history: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string()
+      })
+    )
+    .optional(),
   context: z
     .object({
       userId: z.string().optional(),
@@ -45,9 +53,9 @@ aiRoutes.post(
   rateLimiter(true), // Strict rate limiter for AI queries
   validate({ body: chatMessageSchema }),
   async (req: Request, res: Response) => {
-    const { message, language, context, userId } = req.body;
+    const { message, language, context, userId, history } = req.body;
     const uid = userId || context?.userId || (req.headers['x-user-id'] as string) || '00000000-0000-0000-0000-000000000001';
-    const response = await aiOrchestrator.handleUserMessage(message, language, context, uid);
+    const response = await aiOrchestrator.handleUserMessage(message, language, context, uid, history);
     sendSuccess(res, response, 200, req.id);
   }
 );

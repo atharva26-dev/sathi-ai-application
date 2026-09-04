@@ -12,6 +12,8 @@ export interface DataTrustInfo {
 }
 
 export interface LiveAreaContext {
+  occupation?: string;
+  villageName?: string;
   competitorCount: number;
   localObstacles: string;
   dynamicAnswers: Array<{

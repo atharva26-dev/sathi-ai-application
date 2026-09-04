@@ -6,6 +6,8 @@ import { responseReviewer, cleanAndFormatOutputText } from './validation/respons
 import { SkillHandler, SkillExecutionResult, StructuredCardPayload } from './skills/skillTypes.js';
 
 import { villageBusinessPipeline } from './pipeline/villageBusinessPipeline.js';
+import { ragRetriever, RagRetrievalResult } from './rag/ragRetriever.js';
+import { indiaGeographicMaster } from '../domain/location/indiaGeographicMaster.js';
 
 // Import specialized skills
 import { FinancialManagerSkill } from './skills/financialManagerSkill.js';
@@ -37,7 +39,7 @@ export class AiOrchestrator {
   }
 
   /**
-   * Main conversational entry point
+   * Main conversational entry point with dynamic location and parallel RAG database search
    */
   public async handleUserMessage(
     message: string,
@@ -53,16 +55,34 @@ export class AiOrchestrator {
         dynamicAnswers?: Array<{ question: string; answer: string }>;
       };
     },
-    userId: string = '00000000-0000-0000-0000-000000000001'
+    userId: string = '00000000-0000-0000-0000-000000000001',
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>
   ): Promise<OrchestratorResponse> {
 
-    // 1. Initial intent and parameter extraction
+    // 0. Launch parallel RAG database retrieval across Sathi Docs immediately
+    const ragPromise = Promise.resolve().then(() => ragRetriever.retrieve(message, 4));
+
+    // 1. Dynamic location resolution from user message or context
+    let dynamicLocation = userContext?.location;
+    const msgLocRes = indiaGeographicMaster.resolveLocation(message);
+    if (
+      msgLocRes &&
+      !msgLocRes.isUnknown &&
+      msgLocRes.resolvedGranularity !== 'Unknown' &&
+      msgLocRes.resolvedGranularity !== 'State' &&
+      msgLocRes.village !== 'Local Village'
+    ) {
+      dynamicLocation = `${msgLocRes.village}, ${msgLocRes.district}, ${msgLocRes.state}`;
+    }
+
+    // 2. Initial intent and parameter extraction
     const initialBiz = userContext?.businessName || 'Mobile & Electronics Repair';
     const intentResult = detectIntentAndSwitch(message, initialBiz);
 
-    // 2. Assemble structured canonical context with parameter overrides
+    // 3. Assemble structured canonical context with dynamic overrides
     const effectiveOverrides = {
       ...userContext,
+      location: dynamicLocation,
       capital: intentResult.extractedCapital !== undefined ? intentResult.extractedCapital : userContext?.capital,
       businessName: intentResult.isSwitchRequested && intentResult.targetSwitchBusiness ? intentResult.targetSwitchBusiness : (userContext?.businessName)
     };
@@ -70,13 +90,15 @@ export class AiOrchestrator {
     const context: AssembledBusinessContext = await contextEngine.getContextForUser(userId, effectiveOverrides);
     const activeBiz = context.profile.desiredBusiness || 'Mobile & Electronics Repair';
 
-    // 3. Update conversation memory
+    // 4. Update conversation memory with dynamic business and location
     contextEngine.updateMemory(userId, {
       lastIntent: intentResult.intent,
-      selectedBusiness: activeBiz
+      selectedBusiness: activeBiz,
+      lastLocation: dynamicLocation || context.locationCluster
     });
 
-    // 3.5 Check if query is village viability / 14-step pipeline request
+    // 5. Disambiguate: follow-up questions must NOT trigger rigid 14-step template
+    const hasActiveHistory = Boolean(history && history.length > 0);
     const qLower = message.toLowerCase();
     const isExplicitPipeline =
       qLower.includes('vrs') ||
@@ -88,6 +110,7 @@ export class AiOrchestrator {
       qLower.includes('गाव तयारी');
 
     const isVillageRecommendation =
+      !hasActiveHistory &&
       (qLower.includes('गाव') || qLower.includes('गावा') || qLower.includes('village')) &&
       (qLower.includes('कोणता व्यवसाय') ||
         qLower.includes('व्यवसाय निवडावा') ||
@@ -101,14 +124,19 @@ export class AiOrchestrator {
     if (isVillagePipelineQuery) {
       try {
         const vHint =
-          context.localEvidencePackage?.villageContext?.villageName ||
+          (msgLocRes && !msgLocRes.isUnknown && msgLocRes.village !== 'Local Village' ? msgLocRes.village : undefined) ||
+          (dynamicLocation ? dynamicLocation.split(',')[0].trim() : undefined) ||
           (userContext?.location ? userContext.location.split(',')[0].trim() : undefined) ||
+          context.localEvidencePackage?.villageContext?.villageName ||
           context.profile.village ||
-          'Kundal';
+          'स्थानिक गाव';
         const dHint =
+          (msgLocRes && !msgLocRes.isUnknown && msgLocRes.district !== 'District' ? msgLocRes.district : undefined) ||
+          (dynamicLocation && dynamicLocation.split(',')[1] ? dynamicLocation.split(',')[1].trim() : undefined) ||
+          (userContext?.location && userContext.location.split(',')[1] ? userContext.location.split(',')[1].trim() : undefined) ||
           context.localEvidencePackage?.villageContext?.district ||
           context.profile.district ||
-          'Sangli';
+          'स्थानिक जिल्हा';
 
         const pipelineOutput = await villageBusinessPipeline.execute(message, language, {
           villageHint: vHint,
@@ -174,6 +202,9 @@ export class AiOrchestrator {
       }
     }
 
+    // Await parallel Sathi Docs RAG retrieval
+    const ragResult = await ragPromise;
+
     // 4. Attempt primary Gemini 2-Pass Reasoning if available
     if (geminiProvider.isAvailable()) {
       const maxAttempts = 2;
@@ -182,7 +213,9 @@ export class AiOrchestrator {
           message,
           language,
           context,
-          intentResult.isAlternativeExploration
+          intentResult.isAlternativeExploration,
+          history,
+          ragResult
         );
 
         if (geminiResult && geminiResult.answer) {
@@ -206,6 +239,30 @@ export class AiOrchestrator {
     for (const skill of this.skills) {
       if (skill.canHandle(message, context)) {
         const rawResult = await skill.execute(message, language, context);
+        if (ragResult.citedSources.length > 0) {
+          const sathiSources = ragResult.citedSources.map((c) => ({
+            title: `${c.title} (${c.sourceFile})`,
+            isOfficial: true
+          }));
+          rawResult.sources = [...sathiSources, ...(rawResult.sources || [])];
+        }
+        if (ragResult.chunks.length > 0 && (!rawResult.cards || rawResult.cards.every((c) => c.type !== 'MARKET_GAP'))) {
+          const topChunk = ragResult.chunks[0];
+          rawResult.cards = [
+            ...(rawResult.cards || []),
+            {
+              type: 'MARKET_GAP',
+              title: `📊 संशोधन पुरावा: ${topChunk.docTitle}`,
+              subtitle: `क्षेत्र: ${topChunk.category}`,
+              data: {
+                source: topChunk.docTitle,
+                insight: topChunk.text.slice(0, 160) + '...'
+              },
+              actionText: 'सार्थी संदर्भ पहा',
+              actionRoute: '/research'
+            }
+          ];
+        }
         const review = responseReviewer.validateResponse(
           rawResult,
           context,
@@ -223,6 +280,30 @@ export class AiOrchestrator {
     // 6. Default fallback to Master Business Advisor Skill
     const defaultSkill = new BusinessAdvisorSkill();
     const fallbackRaw = await defaultSkill.execute(message, language, context);
+    if (ragResult.citedSources.length > 0) {
+      const sathiSources = ragResult.citedSources.map((c) => ({
+        title: `${c.title} (${c.sourceFile})`,
+        isOfficial: true
+      }));
+      fallbackRaw.sources = [...sathiSources, ...(fallbackRaw.sources || [])];
+    }
+    if (ragResult.chunks.length > 0 && (!fallbackRaw.cards || fallbackRaw.cards.every((c) => c.type !== 'MARKET_GAP'))) {
+      const topChunk = ragResult.chunks[0];
+      fallbackRaw.cards = [
+        ...(fallbackRaw.cards || []),
+        {
+          type: 'MARKET_GAP',
+          title: `📊 संशोधन पुरावा: ${topChunk.docTitle}`,
+          subtitle: `क्षेत्र: ${topChunk.category}`,
+          data: {
+            source: topChunk.docTitle,
+            insight: topChunk.text.slice(0, 160) + '...'
+          },
+          actionText: 'सार्थी संदर्भ पहा',
+          actionRoute: '/research'
+        }
+      ];
+    }
     const fallbackReview = responseReviewer.validateResponse(
       fallbackRaw,
       context,

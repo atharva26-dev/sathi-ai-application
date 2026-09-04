@@ -1,7 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { UserProfile, BusinessOpportunity } from '../types';
-import { profileService } from '../services/profileService';
+import { profileService, DEMO_PROFILE } from '../services/profileService';
 import { businessService } from '../services/businessService';
+import { storageService } from '../services/storageService';
+
+const SELECTED_OPP_KEY = 'selected_opportunity';
 
 interface UserContextType {
   profile: UserProfile;
@@ -11,6 +14,7 @@ interface UserContextType {
   selectedOpportunity: BusinessOpportunity;
   setSelectedOpportunity: (opp: BusinessOpportunity) => void;
   completeOnboarding: (answers: Partial<UserProfile>) => UserProfile;
+  reloadActiveUserProfile: () => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -18,26 +22,43 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profile, setProfile] = useState<UserProfile>(() => profileService.getProfile());
   const opportunities = businessService.getOpportunities();
-  
-  const [selectedOpportunity, setSelectedOpportunity] = useState<BusinessOpportunity>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('saathi_selected_opportunity') : null;
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
+
+  const getInitialSelectedOpp = useCallback((): BusinessOpportunity => {
+    const saved = storageService.get<BusinessOpportunity | null>(SELECTED_OPP_KEY, null);
+    if (saved && saved.id) return saved;
+
     const currentProfile = profileService.getProfile();
     const desired = currentProfile.desiredBusiness;
     if (desired) {
-      const match = opportunities.find((o) => o.title.toLowerCase().includes(desired.toLowerCase()) || (o.titleNative.mr && o.titleNative.mr.includes(desired)));
+      const match = opportunities.find((o) =>
+        o.title.toLowerCase().includes(desired.toLowerCase()) ||
+        (o.titleNative.mr && o.titleNative.mr.includes(desired))
+      );
       if (match) return match;
     }
     return opportunities[0];
-  });
+  }, [opportunities]);
+
+  const [selectedOpportunity, setSelectedOpportunity] = useState<BusinessOpportunity>(getInitialSelectedOpp);
+
+  const reloadActiveUserProfile = useCallback(() => {
+    const freshProfile = profileService.getProfile();
+    setProfile(freshProfile);
+    setSelectedOpportunity(getInitialSelectedOpp());
+  }, [getInitialSelectedOpp]);
+
+  // Listen for user switch/login/logout events across tabs or services
+  useEffect(() => {
+    const handleUserChanged = () => {
+      reloadActiveUserProfile();
+    };
+    window.addEventListener('saathi_active_user_changed', handleUserChanged);
+    return () => window.removeEventListener('saathi_active_user_changed', handleUserChanged);
+  }, [reloadActiveUserProfile]);
 
   const handleSetSelectedOpportunity = (opp: BusinessOpportunity) => {
     setSelectedOpportunity(opp);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('saathi_selected_opportunity', JSON.stringify(opp));
-    }
+    storageService.set(SELECTED_OPP_KEY, opp);
   };
 
   const updateProfile = (data: Partial<UserProfile>) => {
@@ -48,17 +69,15 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadDemoMode = () => {
     const demo = profileService.loadDemoProfile();
     setProfile(demo);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('saathi_selected_opportunity');
-    }
+    storageService.remove(SELECTED_OPP_KEY);
+    setSelectedOpportunity(opportunities[0]);
   };
 
   const resetAllData = () => {
     const fresh = profileService.resetProfile();
     setProfile(fresh);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('saathi_selected_opportunity');
-    }
+    storageService.remove(SELECTED_OPP_KEY);
+    setSelectedOpportunity(opportunities[0]);
   };
 
   const completeOnboarding = (answers: Partial<UserProfile>): UserProfile => {
@@ -79,7 +98,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetAllData,
         selectedOpportunity,
         setSelectedOpportunity: handleSetSelectedOpportunity,
-        completeOnboarding
+        completeOnboarding,
+        reloadActiveUserProfile
       }}
     >
       {children}

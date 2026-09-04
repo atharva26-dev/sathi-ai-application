@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Send, Volume2, RotateCcw, Sparkles, ChevronRight, AlertCircle, TrendingUp, IndianRupee, Landmark, MapPin } from 'lucide-react';
+import { Mic, MicOff, Send, Volume2, RotateCcw, Sparkles, ChevronRight, AlertCircle, TrendingUp, IndianRupee, Landmark, MapPin, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useVoice } from '../context/VoiceContext';
 import { useUser } from '../context/UserContext';
 import { conversationService } from '../services/conversationService';
+import { storageService } from '../services/storageService';
 import { ChatMessage, StructuredCardPayload, LiveAreaContext } from '../types';
 import { AudioExplainButton } from '../components/common/AudioExplainButton';
 import { LiveAreaSurveyModal } from '../components/chat/LiveAreaSurveyModal';
@@ -25,24 +26,45 @@ export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNaviga
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Live Area Survey Reconnaissance State (Saved per village/session)
+  // Helper: check if saved survey is valid for active user's current occupation and area
+  const checkIsSurveyValid = (survey: LiveAreaContext | null): boolean => {
+    if (!survey) return false;
+    const currentBiz = (profile.desiredBusiness || 'Mobile & Electronics Repair').trim().toLowerCase();
+    const currentVillage = (profile.village || '').trim().toLowerCase();
+
+    // Must have matching occupation and matching village (if specified)
+    const matchesOcc = !survey.occupation || survey.occupation.trim().toLowerCase() === currentBiz;
+    const matchesVillage = !currentVillage || !survey.villageName || survey.villageName.trim().toLowerCase() === currentVillage;
+
+    return Boolean(matchesOcc && matchesVillage);
+  };
+
+  // User-scoped Live Area Survey Reconnaissance State
   const [liveAreaContext, setLiveAreaContext] = useState<LiveAreaContext | null>(() => {
-    const saved = localStorage.getItem('saathi_live_area_survey');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
+    const saved = storageService.get<LiveAreaContext | null>('live_area_survey', null);
+    return checkIsSurveyValid(saved) ? saved : null;
   });
 
-  // Automatically pop the 5 live area questions immediately when entering if not yet completed
+  // Automatically pop the 5 live area questions immediately when entering if not yet settled for this user ID & occupation
   const [showSurveyModal, setShowSurveyModal] = useState<boolean>(() => {
-    const saved = localStorage.getItem('saathi_live_area_survey');
-    return !saved;
+    const saved = storageService.get<LiveAreaContext | null>('live_area_survey', null);
+    return !checkIsSurveyValid(saved);
   });
+
+  // Enforce dynamic re-check: every time a new user ID enters or occupation/village changes, ask 5 questions again
+  useEffect(() => {
+    const saved = storageService.get<LiveAreaContext | null>('live_area_survey', null);
+    const isValid = checkIsSurveyValid(saved);
+    if (isValid) {
+      setLiveAreaContext(saved);
+      setShowSurveyModal(false);
+    } else {
+      // New user ID or changed occupation/village -> ask 5 live questions again to settle live data
+      setLiveAreaContext(null);
+      setShowSurveyModal(true);
+    }
+    setMessages([...conversationService.getMessages(language)]);
+  }, [profile.id, profile.mobile, profile.desiredBusiness, profile.village, language]);
 
   const suggestedQuestions = conversationService.getSuggestedQuestions(language);
 
@@ -85,17 +107,26 @@ export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNaviga
   };
 
   const handleCompleteSurvey = (survey: LiveAreaContext) => {
-    setLiveAreaContext(survey);
-    localStorage.setItem('saathi_live_area_survey', JSON.stringify(survey));
+    const currentBiz = profile.desiredBusiness || 'Mobile & Electronics Repair';
+    const currentVillage = profile.village || 'तुमचे गाव';
+
+    const enrichedSurvey: LiveAreaContext = {
+      ...survey,
+      occupation: currentBiz,
+      villageName: currentVillage
+    };
+
+    setLiveAreaContext(enrichedSurvey);
+    storageService.set('live_area_survey', enrichedSurvey);
     setShowSurveyModal(false);
 
     // Post acknowledgement message from SAATHI into conversation stream
     const confirmationText =
       language === 'mr'
-        ? `✅ **स्थानिक माहिती यशस्वीपणे नोंदवली!**\n• परिसरातील थेट स्पर्धक: **${survey.competitorCount} दुकाने**\n• मुख्य स्थानिक अडचण: **${survey.localObstacles}**\n• प्रत्यक्ष परिस्थिती: **${survey.dynamicAnswers[0].answer}**\n\nआता साथी AI तुमच्या प्रत्यक्ष गावातील माहितीवर आधारित १००% अचूक मार्गदर्शन करेल. तुम्ही कोणताही प्रश्न विचारू शकता!`
+        ? `✅ **स्थानिक पाहणी यशस्वीपणे नोंदवली!**\n• व्यवसाय: **${currentBiz}**\n• गाव/परिसर: **${currentVillage}**\n• परिसरातील थेट स्पर्धक: **${enrichedSurvey.competitorCount} दुकाने**\n• मुख्य स्थानिक अडचण: **${enrichedSurvey.localObstacles}**\n• प्रत्यक्ष परिस्थिती: **${enrichedSurvey.dynamicAnswers[0]?.answer || 'नोंद झाली'}**\n\nआता साथी AI तुमच्या प्रत्यक्ष गावातील ताज्या माहितीवर आधारित १००% अचूक मार्गदर्शन करेल. तुम्ही कोणताही प्रश्न विचारू शकता!`
         : language === 'hi'
-        ? `✅ **स्थानीय जानकारी सफलतापूर्वक दर्ज हो गई!**\n• क्षेत्र के प्रतिस्पर्धी: **${survey.competitorCount} दुकानें**\n• मुख्य स्थानीय समस्या: **${survey.localObstacles}**\n• जमीनी स्थिति: **${survey.dynamicAnswers[0].answer}**\n\nअब साथी AI आपके गांव की वास्तविक स्थिति के आधार पर सटीक सलाह देगा। अपना प्रश्न पूछें!`
-        : `✅ **Live Area Reconnaissance Recorded!**\n• Direct Local Competitors: **${survey.competitorCount} shops**\n• Key Local Obstacle: **${survey.localObstacles}**\n• Ground Factor: **${survey.dynamicAnswers[0].answer}**\n\nSAATHI AI will now provide grounded recommendations factoring in your local village reality. Ask anything!`;
+        ? `✅ **स्थानीय सर्वेक्षण सफलतापूर्वक दर्ज हो गया!**\n• व्यापार: **${currentBiz}**\n• गांव/क्षेत्र: **${currentVillage}**\n• क्षेत्र के प्रतिस्पर्धी: **${enrichedSurvey.competitorCount} दुकानें**\n• मुख्य स्थानीय समस्या: **${enrichedSurvey.localObstacles}**\n• जमीनी स्थिति: **${enrichedSurvey.dynamicAnswers[0]?.answer || 'दर्ज हो गई'}**\n\nअब साथी AI आपके गांव की वास्तविक स्थिति के आधार पर सटीक सलाह देगा। अपना प्रश्न पूछें!`
+        : `✅ **Live Area Reconnaissance Recorded!**\n• Occupation: **${currentBiz}**\n• Village/Area: **${currentVillage}**\n• Direct Local Competitors: **${enrichedSurvey.competitorCount} shops**\n• Key Local Obstacle: **${enrichedSurvey.localObstacles}**\n• Ground Factor: **${enrichedSurvey.dynamicAnswers[0]?.answer || 'Recorded'}**\n\nSAATHI AI will now provide grounded recommendations factoring in your local village reality. Ask anything!`;
 
     const confirmationMsg: ChatMessage = {
       id: 'survey_ack_' + Date.now(),
@@ -357,8 +388,10 @@ export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNaviga
             </span>
             <span style={{ color: liveAreaContext ? '#15803D' : '#3B82F6', fontWeight: 600 }}>
               {liveAreaContext
-                ? `${liveAreaContext.competitorCount} ${language === 'en' ? 'competitors' : 'स्पर्धक'} • ${liveAreaContext.localObstacles.slice(0, 28)}`
-                : (language === 'en' ? '5 area questions pending for 100% accuracy' : '५ सोपे प्रश्न शिल्लक आहेत')}
+                ? `${profile.desiredBusiness || 'व्यवसाय'} (${profile.village || 'गाव'}) • ${liveAreaContext.competitorCount} ${language === 'en' ? 'competitors' : 'स्पर्धक'} • ${liveAreaContext.localObstacles.slice(0, 30)}`
+                : (language === 'en'
+                    ? `5 live questions pending for ${profile.desiredBusiness || 'Business'} in ${profile.village || 'your area'}`
+                    : `${profile.desiredBusiness || 'व्यवसाय'} (${profile.village || 'गाव'}) साठी ५ थेट प्रश्न शिल्लक आहेत`)}
             </span>
           </div>
         </div>
@@ -367,18 +400,24 @@ export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNaviga
           onClick={() => setShowSurveyModal(true)}
           style={{
             background: liveAreaContext ? '#DCFCE7' : '#DBEAFE',
-            border: `1px solid ${liveAreaContext ? '#86EFAC' : '#93C5FD'}`,
+            border: `1.5px solid ${liveAreaContext ? '#86EFAC' : '#93C5FD'}`,
             borderRadius: '8px',
-            padding: '4px 10px',
+            padding: '5px 12px',
             fontSize: '0.78rem',
-            fontWeight: 700,
+            fontWeight: 800,
             color: liveAreaContext ? '#15803D' : '#1D4ED8',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
           }}
         >
-          {liveAreaContext
-            ? (language === 'en' ? 'Edit Survey ✎' : 'माहिती बदला ✎')
-            : (language === 'en' ? 'Answer 5 Questions ➔' : 'माहिती भरा ➔')}
+          <RefreshCw size={12} />
+          <span>
+            {liveAreaContext
+              ? (language === 'en' ? 'Re-ask 5 Qs ✎' : '५ प्रश्न पुन्हा विचारा ✎')
+              : (language === 'en' ? 'Answer 5 Questions ➔' : '५ प्रश्न उत्तरे द्या ➔')}
+          </span>
         </button>
       </div>
 
@@ -420,7 +459,19 @@ export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNaviga
               >
                 {isSaathi ? (
                   <>
-                    <span>🤖 SAATHI साथी</span>
+                    <img
+                      src="/vyapar-saathi-logo.png"
+                      alt="Vyapar Saathi"
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '4px',
+                        objectFit: 'contain',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid rgba(13, 148, 136, 0.3)'
+                      }}
+                    />
+                    <span>Vyapar Saathi (व्यापार साथी)</span>
                     <AudioExplainButton
                       id={`audio_msg_${msg.id}`}
                       textToSpeak={msg.text}
@@ -428,7 +479,7 @@ export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNaviga
                     />
                   </>
                 ) : (
-                  <span>👤 {profile.name.split(' ')[0] || 'तुम्ही'}</span>
+                  <span>👤 {profile.name ? profile.name.split(' ')[0] : 'तुम्ही'}</span>
                 )}
               </div>
 

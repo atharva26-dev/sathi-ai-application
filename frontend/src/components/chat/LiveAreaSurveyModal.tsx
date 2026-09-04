@@ -53,6 +53,19 @@ export const LiveAreaSurveyModal: React.FC<LiveAreaSurveyModalProps> = ({
   // Active question dynamic speech transcript target
   const [activeVoiceTarget, setActiveVoiceTarget] = useState<'comp' | 'obstacle' | 'q3' | 'q4' | 'q5'>('comp');
 
+  // Reset modal state to Question 1 whenever modal opens or occupation/village changes
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentStep(1);
+      setCompetitorCount(1);
+      setLocalObstacle('');
+      setQ3Answer('');
+      setQ4Answer('');
+      setQ5Answer('');
+      setActiveVoiceTarget('comp');
+    }
+  }, [isOpen, occupation, villageName]);
+
   // Handle live transcript
   useEffect(() => {
     if (transcript && isListening) {
@@ -408,6 +421,8 @@ export const LiveAreaSurveyModal: React.FC<LiveAreaSurveyModalProps> = ({
     } else {
       // Complete survey!
       const surveyPayload: LiveAreaContext = {
+        occupation,
+        villageName,
         competitorCount: competitorCount >= 0 ? competitorCount : 0,
         localObstacles: localObstacle.trim() || 'स्थानिक वीज व उधारी समस्या',
         dynamicAnswers: [

@@ -50,19 +50,25 @@ export const LanguageSelectScreen: React.FC<LanguageSelectScreenProps> = ({
         >
           <div
             style={{
-              width: '76px',
-              height: '76px',
-              borderRadius: '24px',
-              backgroundColor: 'var(--primary-subtle)',
+              width: '96px',
+              height: '96px',
+              borderRadius: '26px',
+              backgroundColor: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: 'var(--shadow-md)',
-              border: '2.5px solid rgba(194, 65, 12, 0.3)',
-              marginBottom: '12px'
+              boxShadow: '0 12px 30px rgba(15, 23, 42, 0.1)',
+              border: '2.5px solid rgba(13, 148, 136, 0.3)',
+              marginBottom: '14px',
+              padding: '8px',
+              overflow: 'hidden'
             }}
           >
-            <img src="/logo.svg" alt="SAATHI Logo" style={{ width: '50px', height: '50px' }} />
+            <img
+              src="/vyapar-saathi-logo.png"
+              alt="Vyapar Saathi Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
           </div>
 
           <h1
@@ -74,10 +80,10 @@ export const LanguageSelectScreen: React.FC<LanguageSelectScreenProps> = ({
               letterSpacing: '-0.02em'
             }}
           >
-            SAATHI साथी
+            Vyapar Saathi (व्यापार साथी)
           </h1>
-          <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
-            {t.common?.tagline || 'Your Trusted Rural Business Mentor & Advisor'}
+          <p style={{ fontSize: '0.94rem', color: '#0D9488', fontWeight: 700 }}>
+            Aapka Business, Hamara Saath
           </p>
         </div>
 

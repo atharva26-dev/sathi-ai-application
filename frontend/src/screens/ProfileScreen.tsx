@@ -10,15 +10,20 @@ import {
   Save,
   MapPin,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ShieldCheck,
+  LogOut,
+  Phone
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
+import { useAuth } from '../context/AuthContext';
 import { useAccessibility, FontScale } from '../context/AccessibilityContext';
 import { useOffline } from '../context/OfflineContext';
 import { supportedLanguages } from '../locales';
 import { CascadingLocationPicker } from '../components/location/CascadingLocationPicker';
 import { LocationDetails } from '../types';
+import { storageService } from '../services/storageService';
 
 interface ProfileScreenProps {
   onRestartOnboarding: () => void;
@@ -27,6 +32,7 @@ interface ProfileScreenProps {
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onRestartOnboarding }) => {
   const { t, language, setLanguage } = useLanguage();
   const { profile, updateProfile, loadDemoMode, resetAllData } = useUser();
+  const { activeMobile, logout } = useAuth();
   const { fontScale, setFontScale, highContrast, setHighContrast, reducedMotion, setReducedMotion } =
     useAccessibility();
   const { isOnline, isSyncing, queuedActionsCount, triggerManualSync } = useOffline();
@@ -71,6 +77,90 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onRestartOnboardin
             ? 'आपकी व्यक्तिगत जानकारी, व्यावसायिक स्थान और पहुँच विकल्प'
             : 'Your enterprise details, canonical location, and accessibility settings'}
         </p>
+      </div>
+
+      {/* Account & PIN Security Card */}
+      <div
+        className="saathi-card"
+        style={{
+          padding: '16px 20px',
+          backgroundColor: '#FFFFFF',
+          marginBottom: '20px',
+          border: '1.5px solid rgba(22, 163, 74, 0.3)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Phone size={22} color="#16A34A" />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong style={{ fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                  +91 {profile.mobile || activeMobile || '9822345678'}
+                </strong>
+                <span
+                  style={{
+                    backgroundColor: 'rgba(22, 163, 74, 0.12)',
+                    color: '#166534',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <ShieldCheck size={12} />
+                  {language === 'mr' ? 'पिन सुरक्षित' : language === 'hi' ? 'पिन सुरक्षित' : 'PIN Verified'}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                {language === 'mr'
+                  ? 'या मोबाईलचे स्वतंत्र व सुरक्षित खाते'
+                  : language === 'hi'
+                  ? 'इस मोबाइल का स्वतंत्र व सुरक्षित खाता'
+                  : 'Isolated User Account for this Mobile'}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              onRestartOnboarding();
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: '#FEF2F2',
+              border: '1.5px solid #FECACA',
+              color: '#DC2626',
+              padding: '8px 14px',
+              borderRadius: '10px',
+              fontWeight: 800,
+              fontSize: '0.84rem',
+              cursor: 'pointer'
+            }}
+          >
+            <LogOut size={15} />
+            <span>{language === 'mr' ? 'खाते बदला / लॉगआउट' : language === 'hi' ? 'खाता बदलें / लॉगआउट' : 'Switch / Logout'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Profile Form Card */}
@@ -519,7 +609,21 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onRestartOnboardin
         </button>
 
         <button
-          onClick={resetAllData}
+          onClick={() => {
+            const confirmed = window.confirm(
+              language === 'mr'
+                ? 'या मोबाईल खात्याची सर्व माहिती पूर्णपणे हटवायची आहे का?'
+                : language === 'hi'
+                ? 'क्या आप इस मोबाइल खाते का सारा डेटा हटाना चाहते हैं?'
+                : 'Are you sure you want to completely erase all data for this mobile account?'
+            );
+            if (confirmed) {
+              storageService.clearUserData(activeMobile || profile.mobile);
+              resetAllData();
+              logout();
+              onRestartOnboarding();
+            }
+          }}
           style={{
             display: 'flex',
             alignItems: 'center',

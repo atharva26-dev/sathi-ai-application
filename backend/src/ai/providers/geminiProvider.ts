@@ -34,7 +34,9 @@ export class GeminiProvider {
     query: string,
     language: string,
     context: AssembledBusinessContext,
-    isAlternativeExploration = false
+    isAlternativeExploration = false,
+    history?: Array<{ role: string; content: string }>,
+    ragEvidence?: { synthesizedContextPrompt?: string; citedSources?: Array<{ title: string; sourceFile: string; category: string }> }
   ): Promise<SkillExecutionResult | null> {
     if (!this.isAvailable()) {
       return null;
@@ -57,6 +59,16 @@ export class GeminiProvider {
     const candidateKnowledgeModelsText = (ruralKnowledge.candidateModels || [])
       .map((m) => `- [${m.name} (${m.category})]: ${m.concept}. Validation: ${m.validationChecklist[0]}. Risks: ${m.criticalRisks.slice(0, 2).join(', ')}.`)
       .join('\n');
+
+    // Conversation History Section for Follow-ups
+    const historySection = history && history.length > 0
+      ? `\n============================================================\nPREVIOUS CONVERSATION CONTEXT (FOLLOW-UP MODE):\n============================================================\n${history.map((h) => `${h.role === 'user' ? 'User' : 'SAATHI'}: ${h.content}`).join('\n')}\n\nCRITICAL FOLLOW-UP DIRECTIVE:\n- The user is asking a direct follow-up question in the ongoing dialogue above.\n- Answer the user's specific question DIRECTLY, CONCISELY, and ACCURATELY.\n- Do NOT repeat the full initial introduction or broad overview.\n- Directly answer the exact query asked (e.g. capital, competitor handling, profit margins, loan emi).\n`
+      : '';
+
+    // Empirical Research Context from Sathi Docs RAG
+    const ragSection = ragEvidence?.synthesizedContextPrompt
+      ? `\n${ragEvidence.synthesizedContextPrompt}\nCRITICAL MIXTURE SYNTHESIS INSTRUCTION:\n- Synthesize the above official research findings and empirical evidence with the user's question and local location realities (${loc}).\n- Combine practical real-world statistics, working capital allocation rules, and execution steps into a blended/mixture answer.\n`
+      : '';
 
     // Build the 25-Section Master Business Advisor Prompt Architecture
     const systemPrompt = `============================================================
@@ -308,6 +320,8 @@ Next Steps:
 3. (Small-scale start step 3)
 
 For simple direct questions, answer directly and clearly in simple ${language} using clean bullet points without unnecessary filler.
+${ragSection}
+${historySection}
 
 ============================================================
 OUTPUT SCHEMA REQUIREMENT
@@ -379,6 +393,14 @@ Respond with a pure JSON object adhering to this schema:
 
         const parsed = JSON.parse(rawText) as SkillExecutionResult;
         if (parsed && parsed.answer) {
+          if (ragEvidence?.citedSources && ragEvidence.citedSources.length > 0) {
+            const existing = parsed.sources || [];
+            const newCitations = ragEvidence.citedSources.map((c) => ({
+              title: `${c.title} (${c.sourceFile})`,
+              isOfficial: true
+            }));
+            parsed.sources = [...newCitations, ...existing];
+          }
           return parsed;
         }
       } catch (err: any) {

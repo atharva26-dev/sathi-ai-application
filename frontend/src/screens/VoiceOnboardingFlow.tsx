@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Mic,
   MicOff,
@@ -14,8 +14,6 @@ import {
   HelpCircle,
   Calendar,
   Check,
-  Edit2,
-  Lock,
   Phone,
   KeyRound,
   ShieldCheck,
@@ -27,11 +25,12 @@ import { useLanguage } from '../context/LanguageContext';
 import { useVoice } from '../context/VoiceContext';
 import { useUser } from '../context/UserContext';
 import { useAuth } from '../context/AuthContext';
-import { UserProfile, LanguageCode, LocationDetails } from '../types';
+import { UserProfile, LocationDetails } from '../types';
 import { storageService } from '../services/storageService';
 import { CascadingLocationPicker } from '../components/location/CascadingLocationPicker';
 
 const DRAFT_STORAGE_KEY = 'saathi_draft_onboarding';
+const TOTAL_STEPS = 8; // Steps 0 through 7
 
 interface VoiceOnboardingFlowProps {
   onComplete: () => void;
@@ -41,7 +40,6 @@ interface VoiceOnboardingFlowProps {
 
 export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
   onComplete,
-  onSkipToDemo,
   onChangeLanguage
 }) => {
   const { t, language, setLanguage, supportedLanguages } = useLanguage();
@@ -56,7 +54,7 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
     stopSpeaking,
     isSpeaking
   } = useVoice();
-  const { completeOnboarding, loadDemoMode, updateProfile } = useUser();
+  const { completeOnboarding, updateProfile } = useUser();
   const { login, createSessionFromOnboarding, isLoading: isAuthLoading } = useAuth();
 
   // Load draft from local storage if exists
@@ -80,11 +78,12 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
     };
   });
 
+  // Mandatory Mobile & PIN state (Step 0)
+  const [mobileInput, setMobileInput] = useState<string>(() => answers.mobile || '');
+  const [pinInput, setPinInput] = useState<string>(() => answers.pin || '');
+
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [currentInputText, setCurrentInputText] = useState<string>('');
-  const [secondaryInputText, setSecondaryInputText] = useState<string>('');
-  const [tertiaryInputText, setTertiaryInputText] = useState<string>('');
-  const [quaternaryInputText, setQuaternaryInputText] = useState<string>('');
 
   // Voice confirmation dialog state
   const [voiceConfirmation, setVoiceConfirmation] = useState<{
@@ -101,16 +100,10 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
   const [uncertaintyNotice, setUncertaintyNotice] = useState<string>('');
   const [validationError, setValidationError] = useState<string>('');
 
-  // Returning User Login Modal
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
-  const [loginMobile, setLoginMobile] = useState<string>('');
-  const [loginPin, setLoginPin] = useState<string>('');
-  const [loginError, setLoginError] = useState<string>('');
-
   // Quick Language Switcher Modal inside Onboarding
   const [isLangModalOpen, setIsLangModalOpen] = useState<boolean>(false);
 
-  // Auto-save draft on answers change
+  // Auto-save draft on answers change (scoped per active user)
   useEffect(() => {
     storageService.set(DRAFT_STORAGE_KEY, answers);
   }, [answers]);
@@ -122,19 +115,18 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
     setVoiceConfirmation({ show: false, recognizedValue: '', field: '' });
 
     if (currentStepIndex === 0) {
-      setCurrentInputText(answers.name || '');
+      // Step 0 uses mobileInput and pinInput directly
     } else if (currentStepIndex === 1) {
-      setCurrentInputText(answers.age ? String(answers.age) : '');
+      setCurrentInputText(answers.name || '');
     } else if (currentStepIndex === 2) {
-      setCurrentInputText(answers.village || '');
-      setSecondaryInputText(answers.block || '');
-      setTertiaryInputText(answers.district || '');
-      setQuaternaryInputText(answers.state || (language === 'mr' ? 'महाराष्ट्र' : 'Maharashtra'));
+      setCurrentInputText(answers.age ? String(answers.age) : '');
     } else if (currentStepIndex === 3) {
-      setCurrentInputText(answers.desiredBusiness || '');
+      // Cascading Location Picker
     } else if (currentStepIndex === 4) {
-      setCurrentInputText(answers.ownCapital ? String(answers.ownCapital) : '');
+      setCurrentInputText(answers.desiredBusiness || '');
     } else if (currentStepIndex === 5) {
+      setCurrentInputText(answers.ownCapital !== undefined ? String(answers.ownCapital) : '');
+    } else if (currentStepIndex === 6) {
       setCurrentInputText(answers.adviceNeeded || '');
     }
   }, [currentStepIndex]);
@@ -143,18 +135,25 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
   const speakCurrentPrompt = useCallback(() => {
     let prompt = '';
     if (currentStepIndex === 0) {
-      prompt = `${t.onboarding.introGreeting} ${t.onboarding.qName}`;
+      prompt =
+        language === 'mr'
+          ? 'कृपया तुमचा १० अंकी मोबाईल नंबर आणि ४ अंकी सुरक्षा पिन टाका.'
+          : language === 'hi'
+          ? 'कृपया अपना १० अंकों का मोबाइल नंबर और ४ अंकों का सुरक्षा पिन दर्ज करें।'
+          : 'Please enter your 10-digit mobile number and 4-digit security PIN.';
     } else if (currentStepIndex === 1) {
-      prompt = t.onboarding.qAge;
+      prompt = `${t.onboarding.introGreeting} ${t.onboarding.qName}`;
     } else if (currentStepIndex === 2) {
-      prompt = t.onboarding.qLocation;
+      prompt = t.onboarding.qAge;
     } else if (currentStepIndex === 3) {
-      prompt = t.onboarding.qDesiredBusiness;
+      prompt = t.onboarding.qLocation;
     } else if (currentStepIndex === 4) {
-      prompt = t.onboarding.qCapital;
+      prompt = t.onboarding.qDesiredBusiness;
     } else if (currentStepIndex === 5) {
-      prompt = t.onboarding.qAdviceNeeded;
+      prompt = t.onboarding.qCapital;
     } else if (currentStepIndex === 6) {
+      prompt = t.onboarding.qAdviceNeeded;
+    } else if (currentStepIndex === 7) {
       prompt = t.onboarding.reviewSub;
     }
 
@@ -171,10 +170,9 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
     return () => clearTimeout(timer);
   }, [currentStepIndex, language, speakCurrentPrompt]);
 
-  // Parse spoken numbers into numeric values (supports English, Marathi, Hindi number phrases)
+  // Parse spoken numbers into numeric values
   const parseSpokenNumber = (text: string): number | null => {
     const clean = text.toLowerCase().trim();
-    // Direct digits extraction
     const matchDigits = clean.match(/\d+/g);
     if (matchDigits) {
       let num = parseInt(matchDigits.join(''), 10);
@@ -186,7 +184,6 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
       return num;
     }
 
-    // Common Indian spoken number words
     if (clean.includes('एक लाख') || clean.includes('one lakh')) return 100000;
     if (clean.includes('दोन लाख') || clean.includes('दो लाख') || clean.includes('two lakh')) return 200000;
     if (clean.includes('अडीच लाख') || clean.includes('ढाई लाख') || clean.includes('two and half lakh')) return 250000;
@@ -207,6 +204,24 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
     if (!trimmed) return;
 
     if (currentStepIndex === 0) {
+      // Spoken phone or pin
+      const digits = trimmed.replace(/\D/g, '');
+      if (digits.length === 10) {
+        setMobileInput(digits);
+        setVoiceConfirmation({
+          show: true,
+          recognizedValue: digits,
+          field: 'mobile'
+        });
+      } else if (digits.length === 4) {
+        setPinInput(digits);
+        setVoiceConfirmation({
+          show: true,
+          recognizedValue: '••••',
+          field: 'pin'
+        });
+      }
+    } else if (currentStepIndex === 1) {
       // Name
       setCurrentInputText(trimmed);
       setVoiceConfirmation({
@@ -214,7 +229,7 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
         recognizedValue: trimmed,
         field: 'name'
       });
-    } else if (currentStepIndex === 1) {
+    } else if (currentStepIndex === 2) {
       // Age
       const parsedAge = parseSpokenNumber(trimmed);
       if (parsedAge && parsedAge >= 15 && parsedAge <= 99) {
@@ -227,22 +242,7 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
       } else {
         setUncertaintyNotice(t.onboarding.uncertainVoiceNotice);
       }
-    } else if (currentStepIndex === 2) {
-      // Location
-      const parts = trimmed.split(/[,،\s]+/).filter(Boolean);
-      if (parts.length >= 1) {
-        setCurrentInputText(parts[0] || trimmed);
-        if (parts.length >= 2) setSecondaryInputText(parts[1]);
-        if (parts.length >= 3) setTertiaryInputText(parts[2]);
-      } else {
-        setCurrentInputText(trimmed);
-      }
-      setVoiceConfirmation({
-        show: true,
-        recognizedValue: trimmed,
-        field: 'location'
-      });
-    } else if (currentStepIndex === 3) {
+    } else if (currentStepIndex === 4) {
       // Business Idea
       setCurrentInputText(trimmed);
       setVoiceConfirmation({
@@ -250,7 +250,7 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
         recognizedValue: trimmed,
         field: 'business'
       });
-    } else if (currentStepIndex === 4) {
+    } else if (currentStepIndex === 5) {
       // Capital / Budget
       const parsedCap = parseSpokenNumber(trimmed);
       if (parsedCap !== null && parsedCap >= 0) {
@@ -263,7 +263,7 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
       } else {
         setUncertaintyNotice(t.onboarding.uncertainVoiceNotice);
       }
-    } else if (currentStepIndex === 5) {
+    } else if (currentStepIndex === 6) {
       // Advice Needed
       setCurrentInputText(trimmed);
       setVoiceConfirmation({
@@ -276,19 +276,13 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
 
   // Voice confirmation trigger audio
   const handleConfirmVoiceValue = () => {
-    if (voiceConfirmation.field === 'name') {
+    if (voiceConfirmation.field === 'mobile') {
+      setMobileInput(voiceConfirmation.recognizedValue);
+    } else if (voiceConfirmation.field === 'name') {
       setAnswers((prev) => ({ ...prev, name: currentInputText.trim() }));
     } else if (voiceConfirmation.field === 'age') {
       const ageNum = parseInt(currentInputText, 10);
       if (!isNaN(ageNum)) setAnswers((prev) => ({ ...prev, age: ageNum }));
-    } else if (voiceConfirmation.field === 'location') {
-      setAnswers((prev) => ({
-        ...prev,
-        village: currentInputText.trim() || prev.village,
-        block: secondaryInputText.trim() || prev.block,
-        district: tertiaryInputText.trim() || prev.district,
-        state: quaternaryInputText.trim() || prev.state
-      }));
     } else if (voiceConfirmation.field === 'business') {
       setAnswers((prev) => ({ ...prev, desiredBusiness: currentInputText.trim() }));
     } else if (voiceConfirmation.field === 'capital') {
@@ -303,6 +297,69 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
     handleNext();
   };
 
+  // Step 0 Authentication Gate: 1 Mobile = 1 User with 4-digit PIN verification
+  const handleStep0Auth = async () => {
+    setValidationError('');
+    stopListening();
+    stopSpeaking();
+
+    const cleanMobile = mobileInput.replace(/\D/g, '').slice(-10);
+    if (cleanMobile.length !== 10) {
+      setValidationError(
+        language === 'mr'
+          ? 'कृपया अचूक १० अंकी मोबाईल नंबर टाका.'
+          : language === 'hi'
+          ? 'कृपया सही १० अंकों का मोबाइल नंबर दर्ज करें।'
+          : 'Please enter a valid 10-digit mobile number.'
+      );
+      return;
+    }
+
+    if (!pinInput || pinInput.length !== 4) {
+      setValidationError(
+        language === 'mr'
+          ? 'कृपया अचूक ४ अंकी सुरक्षा पिन टाका.'
+          : language === 'hi'
+          ? 'कृपया ४ अंकों का सुरक्षा पिन दर्ज करें।'
+          : 'Please enter a 4-digit security PIN.'
+      );
+      return;
+    }
+
+    const res = await login(cleanMobile, pinInput);
+    if (res.success) {
+      // If user profile is already fully onboarded, navigate directly to dashboard!
+      if (res.profile?.isOnboarded) {
+        updateProfile(res.profile);
+        storageService.remove(DRAFT_STORAGE_KEY);
+        onComplete();
+        return;
+      }
+
+      // If new user or profile incomplete, advance to profile questions with clean isolated answers
+      setAnswers((prev) => ({
+        ...prev,
+        mobile: cleanMobile,
+        pin: pinInput,
+        name: res.profile?.name || prev.name || '',
+        village: res.profile?.village || prev.village || '',
+        district: res.profile?.district || prev.district || '',
+        desiredBusiness: res.profile?.desiredBusiness || prev.desiredBusiness || '',
+        ownCapital: res.profile?.ownCapital !== undefined ? res.profile.ownCapital : prev.ownCapital
+      }));
+      setCurrentStepIndex(1);
+    } else {
+      setValidationError(
+        res.error ||
+          (language === 'mr'
+            ? 'चुकीचा सुरक्षा पिन. कृपया अचूक ४ अंकी पिन टाका.'
+            : language === 'hi'
+            ? 'गलत सुरक्षा पिन। कृपया सही ४ अंकों का पिन दर्ज करें।'
+            : 'Incorrect security PIN. Please enter correct 4-digit PIN.')
+      );
+    }
+  };
+
   // Step Validation & Navigation
   const handleNext = () => {
     setValidationError('');
@@ -311,20 +368,23 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
     stopSpeaking();
 
     if (currentStepIndex === 0) {
+      handleStep0Auth();
+      return;
+    } else if (currentStepIndex === 1) {
       const nameVal = currentInputText.trim();
       if (!nameVal) {
         setValidationError(t.onboarding.validationErrors.nameRequired);
         return;
       }
       setAnswers((prev) => ({ ...prev, name: nameVal }));
-    } else if (currentStepIndex === 1) {
+    } else if (currentStepIndex === 2) {
       const ageVal = parseInt(currentInputText.trim(), 10);
       if (isNaN(ageVal) || ageVal < 16 || ageVal > 100) {
         setValidationError(t.onboarding.validationErrors.ageRequired);
         return;
       }
       setAnswers((prev) => ({ ...prev, age: ageVal }));
-    } else if (currentStepIndex === 2) {
+    } else if (currentStepIndex === 3) {
       if (!answers.village || !answers.district || !answers.state || !answers.block) {
         setValidationError(
           language === 'mr'
@@ -335,21 +395,21 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
         );
         return;
       }
-    } else if (currentStepIndex === 3) {
+    } else if (currentStepIndex === 4) {
       const bizVal = currentInputText.trim();
       if (!bizVal) {
         setValidationError(t.onboarding.validationErrors.businessRequired);
         return;
       }
       setAnswers((prev) => ({ ...prev, desiredBusiness: bizVal }));
-    } else if (currentStepIndex === 4) {
+    } else if (currentStepIndex === 5) {
       const capVal = parseFloat(currentInputText.replace(/[^0-9.]/g, ''));
       if (isNaN(capVal) || capVal < 0) {
         setValidationError(t.onboarding.validationErrors.capitalRequired);
         return;
       }
       setAnswers((prev) => ({ ...prev, ownCapital: capVal }));
-    } else if (currentStepIndex === 5) {
+    } else if (currentStepIndex === 6) {
       const adviceVal = currentInputText.trim();
       if (!adviceVal) {
         setValidationError(t.onboarding.validationErrors.adviceRequired);
@@ -362,7 +422,7 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
       }));
     }
 
-    if (currentStepIndex < 6) {
+    if (currentStepIndex < TOTAL_STEPS - 1) {
       setCurrentStepIndex((prev) => prev + 1);
     }
   };
@@ -382,12 +442,14 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
     stopListening();
     stopSpeaking();
 
-    // Prepare complete profile data
+    const cleanMobile = (answers.mobile || mobileInput || '').replace(/\D/g, '').slice(-10);
+    const validPin = answers.pin || pinInput || '1234';
+
     const finalProfileData: Partial<UserProfile> = {
       name: answers.name || 'उद्योजक मित्र',
       age: answers.age || 30,
-      mobile: answers.mobile || '',
-      pin: answers.pin || '',
+      mobile: cleanMobile,
+      pin: validPin,
       village: answers.village || 'सुपे',
       block: answers.block || 'बारामती',
       district: answers.district || 'पुणे',
@@ -405,52 +467,32 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
     };
 
     try {
-      // 1. Synchronously save profile into UserContext and localStorage
+      // 1. Synchronously save profile into UserContext and user-scoped storage
       completeOnboarding(finalProfileData);
 
       // 2. Provision authenticated session
-      await createSessionFromOnboarding(finalProfileData, answers.pin);
+      await createSessionFromOnboarding(finalProfileData, validPin);
 
       // 3. Clear draft
       storageService.remove(DRAFT_STORAGE_KEY);
 
-      // 4. Navigate directly to existing Dashboard
+      // 4. Navigate directly to Dashboard
       onComplete();
     } catch (err) {
       console.error('Submission error:', err);
-      // Fallback offline complete
       completeOnboarding(finalProfileData);
       onComplete();
     }
   };
 
-  // Returning User Login Handler
-  const handleReturningLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-    if (!loginMobile || loginMobile.length < 10) {
-      setLoginError(language === 'en' ? 'Please enter valid 10-digit mobile number' : 'कृपया वैध १० अंकी मोबाईल नंबर टाका');
-      return;
-    }
-    if (!loginPin || loginPin.length < 4) {
-      setLoginError(language === 'en' ? 'Please enter 4-digit security PIN' : 'कृपया ४ अंकी सुरक्षा पिन टाका');
-      return;
-    }
-
-    const res = await login(loginMobile, loginPin);
-    if (res.success) {
-      if (res.profile) {
-        updateProfile({ ...res.profile, isOnboarded: true });
-      }
-      setIsLoginModalOpen(false);
-      storageService.remove(DRAFT_STORAGE_KEY);
-      onComplete();
-    } else {
-      setLoginError(res.error || (language === 'en' ? 'Login failed' : 'लॉगिन अयशस्वी झाले'));
-    }
+  // Preset demo account autofill
+  const handleAutofillDemo = () => {
+    setMobileInput('9822345678');
+    setPinInput('1234');
+    setValidationError('');
   };
 
-  // Inspirational business ideas (for easy tap without restricting custom input)
+  // Inspirational business ideas
   const businessInspirations = [
     { label: 'Mobile & Electronics Repair', icon: '📱', native: language === 'mr' ? 'मोबाईल रिपेअर' : language === 'hi' ? 'मोबाइल रिपेयरिंग' : 'Mobile Repair' },
     { label: 'Tailoring & Garments', icon: '✂️', native: language === 'mr' ? 'शिलाई व कपडे काम' : language === 'hi' ? 'सिलाई व वस्त्र' : 'Tailoring' },
@@ -494,7 +536,74 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
         boxSizing: 'border-box'
       }}
     >
-      {/* Top Bar: Progress, Language Switcher, Returning User Link */}
+      {/* Top Brand Banner */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '12px',
+          paddingBottom: '8px',
+          borderBottom: '1px solid var(--border-light, #E2E8F0)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+              border: '1.5px solid rgba(13, 148, 136, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              padding: '2px',
+              flexShrink: 0
+            }}
+          >
+            <img
+              src="/vyapar-saathi-logo.png"
+              alt="Vyapar Saathi Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary, #0F172A)' }}>
+              Vyapar Saathi व्यापार साथी
+            </div>
+            <div style={{ fontSize: '0.74rem', color: '#0D9488', fontWeight: 600 }}>
+              Aapka Business, Hamara Saath
+            </div>
+          </div>
+        </div>
+
+        {onChangeLanguage && (
+          <button
+            onClick={onChangeLanguage}
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid var(--border-medium, #CBD5E1)',
+              borderRadius: '16px',
+              padding: '4px 10px',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              color: 'var(--text-primary, #0F172A)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+          >
+            <Globe size={13} />
+            <span>{language === 'mr' ? 'मराठी' : language === 'hi' ? 'हिंदी' : 'Eng'}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Top Bar: Navigation, Progress Indicator & Language */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           {currentStepIndex > 0 ? (
@@ -518,25 +627,10 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
               <span>{t.common.back}</span>
             </button>
           ) : (
-            <button
-              onClick={() => setIsLoginModalOpen(true)}
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--border-medium, #cbd5e1)',
-                color: 'var(--primary, #C2410C)',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                padding: '6px 12px',
-                borderRadius: '16px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <Lock size={14} />
-              <span>{t.onboarding.alreadyHaveAccount}</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#16A34A', fontSize: '0.85rem', fontWeight: 700 }}>
+              <ShieldCheck size={18} />
+              <span>{language === 'mr' ? 'सुरक्षित वापरकर्ता पडताळणी' : language === 'hi' ? 'सुरक्षित उपयोगकर्ता सत्यापन' : 'Secure User Verification'}</span>
+            </div>
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -550,10 +644,9 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
                 borderRadius: '20px'
               }}
             >
-              {t.onboarding.stepOf.replace('{current}', String(currentStepIndex + 1)).replace('{total}', '7')}
+              {t.onboarding.stepOf.replace('{current}', String(currentStepIndex + 1)).replace('{total}', String(TOTAL_STEPS))}
             </span>
 
-            {/* Quick Language Switcher Button */}
             <button
               onClick={() => setIsLangModalOpen(true)}
               style={{
@@ -576,7 +669,7 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
           </div>
         </div>
 
-        {/* Top Visual Progress Bar */}
+        {/* Visual Progress Bar */}
         <div
           style={{
             width: '100%',
@@ -589,7 +682,7 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
         >
           <div
             style={{
-              width: `${((currentStepIndex + 1) / 7) * 100}%`,
+              width: `${((currentStepIndex + 1) / TOTAL_STEPS) * 100}%`,
               height: '100%',
               backgroundColor: 'var(--primary, #C2410C)',
               transition: 'width 0.35s ease-in-out'
@@ -632,9 +725,7 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
                 {t.common.appName} {language === 'en' ? 'Voice Assistant' : 'मार्गदर्शक सहाय्यक'}
               </div>
               <div style={{ fontSize: '0.75rem', color: isListening ? '#DC2626' : 'var(--text-secondary, #64748B)', fontWeight: 600 }}>
-                {isListening
-                  ? t.onboarding.listeningNotice
-                  : t.onboarding.voiceFallbackNotice}
+                {isListening ? t.onboarding.listeningNotice : t.onboarding.voiceFallbackNotice}
               </div>
             </div>
           </div>
@@ -663,7 +754,7 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
               backgroundColor: '#FEF2F2',
               border: '1px solid #FECACA',
               color: '#B91C1C',
-              padding: '10px 14px',
+              padding: '12px 14px',
               borderRadius: '12px',
               fontSize: '0.9rem',
               fontWeight: 700,
@@ -673,7 +764,7 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
               gap: '8px'
             }}
           >
-            <AlertCircle size={18} />
+            <AlertCircle size={20} style={{ flexShrink: 0 }} />
             <span>{validationError}</span>
           </div>
         )}
@@ -715,9 +806,10 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', fontWeight: 800, fontSize: '0.95rem' }}>
               <Check size={18} />
               <span>
+                {voiceConfirmation.field === 'mobile' && `मोबाईल नंबर: ${voiceConfirmation.recognizedValue}`}
+                {voiceConfirmation.field === 'pin' && '४-अंकी सुरक्षा पिन नोंदवला'}
                 {voiceConfirmation.field === 'name' && t.onboarding.confirmName.replace('{val}', voiceConfirmation.recognizedValue)}
                 {voiceConfirmation.field === 'age' && t.onboarding.confirmAge.replace('{val}', voiceConfirmation.recognizedValue)}
-                {voiceConfirmation.field === 'location' && t.onboarding.confirmLocation.replace('{val}', voiceConfirmation.recognizedValue)}
                 {voiceConfirmation.field === 'business' && t.onboarding.confirmBusiness.replace('{val}', voiceConfirmation.recognizedValue)}
                 {voiceConfirmation.field === 'capital' && t.onboarding.confirmCapital.replace('{val}', voiceConfirmation.recognizedValue)}
                 {voiceConfirmation.field === 'advice' && t.onboarding.confirmAdvice.replace('{val}', voiceConfirmation.recognizedValue)}
@@ -764,8 +856,165 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
           </div>
         )}
 
-        {/* STEP 0: Full Name */}
+        {/* STEP 0: Mandatory Mobile Number & 4-Digit Security PIN */}
         {currentStepIndex === 0 && (
+          <div className="animate-fade-in">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(194, 65, 12, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Phone size={24} color="var(--primary, #C2410C)" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary, #0F172A)', margin: 0 }}>
+                  {language === 'mr'
+                    ? 'मोबाईल नंबर व सुरक्षा पिन'
+                    : language === 'hi'
+                    ? 'मोबाइल नंबर और सुरक्षा पिन'
+                    : 'Mobile Number & Security PIN'}
+                </h2>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary, #64748B)', margin: 0 }}>
+                  {language === 'mr'
+                    ? '१ मोबाईल = १ स्वतंत्र खाते. प्रत्येक वापरकर्त्याची माहिती पूर्णपणे वेगळी राहते.'
+                    : language === 'hi'
+                    ? '१ मोबाइल = १ सुरक्षित खाता। प्रत्येक उपयोगकर्ता का डेटा पूरी तरह अलग रहेगा।'
+                    : '1 Mobile = 1 Isolated User Account. Every user data is isolated.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Form Inputs Container */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
+              <div>
+                <label style={{ fontSize: '0.84rem', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <Phone size={15} color="var(--primary, #C2410C)" />
+                  <span>{language === 'mr' ? 'तुमचा १० अंकी मोबाईल नंबर:' : language === 'hi' ? 'आपका १० अंकों का मोबाइल नंबर:' : 'Your 10-digit Mobile Number:'}</span>
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span
+                    style={{
+                      padding: '14px 12px',
+                      backgroundColor: '#F1F5F9',
+                      border: '2px solid var(--border-medium, #CBD5E1)',
+                      borderRight: 'none',
+                      borderRadius: '14px 0 0 14px',
+                      fontWeight: 800,
+                      color: '#475569',
+                      fontSize: '1rem'
+                    }}
+                  >
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    value={mobileInput}
+                    onChange={(e) => setMobileInput(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="उदा. 9822345678"
+                    style={{
+                      flex: 1,
+                      padding: '14px 16px',
+                      borderRadius: '0 14px 14px 0',
+                      border: '2px solid var(--border-medium, #CBD5E1)',
+                      backgroundColor: '#FFFFFF',
+                      fontSize: '1.2rem',
+                      fontWeight: 800,
+                      color: 'var(--text-primary, #0F172A)',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      letterSpacing: '1px'
+                    }}
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.84rem', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <KeyRound size={15} color="var(--primary, #C2410C)" />
+                  <span>{language === 'mr' ? '४-अंकी सुरक्षा पिन (Security PIN):' : language === 'hi' ? '४-अंकों का सुरक्षा पिन:' : '4-Digit Security PIN:'}</span>
+                </label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="••••"
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: '14px',
+                    border: '2px solid var(--border-medium, #CBD5E1)',
+                    backgroundColor: '#FFFFFF',
+                    fontSize: '1.4rem',
+                    fontWeight: 800,
+                    color: 'var(--text-primary, #0F172A)',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    letterSpacing: '8px'
+                  }}
+                />
+                <span style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '4px', display: 'block' }}>
+                  {language === 'mr'
+                    ? 'नवीन वापरकर्त्यासाठी हा पिन खाते सुरक्षित ठेवेल. जुन्या वापरकर्त्याने अचूक पिन टाकावा.'
+                    : language === 'hi'
+                    ? 'नए उपयोगकर्ता के लिए यह पिन खाता सुरक्षित रखेगा। पुराने उपयोगकर्ता सही पिन दर्ज करें।'
+                    : 'Secures your isolated account. Returning users must enter the correct PIN.'}
+                </span>
+              </div>
+
+              {/* Demo Account Quick Autofill Button */}
+              <div
+                style={{
+                  backgroundColor: 'rgba(194, 65, 12, 0.05)',
+                  border: '1.5px dashed rgba(194, 65, 12, 0.3)',
+                  borderRadius: '12px',
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: '4px'
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--primary, #C2410C)' }}>
+                    ⚡ {language === 'mr' ? 'डेमो खात्यावर थेट लॉगिन' : language === 'hi' ? 'डेमो खाते से सीधा लॉगिन' : 'Direct Demo Account'}
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#475569' }}>
+                    मोबाईल: 9822345678 | पिन: 1234 (Ramesh Patil, Baramati)
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAutofillDemo}
+                  style={{
+                    backgroundColor: 'var(--primary, #C2410C)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {language === 'mr' ? 'भरा' : language === 'hi' ? 'भरें' : 'Fill'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 1: Full Name */}
+        {currentStepIndex === 1 && (
           <div className="animate-fade-in">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <div
@@ -816,8 +1065,8 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
           </div>
         )}
 
-        {/* STEP 1: Age */}
-        {currentStepIndex === 1 && (
+        {/* STEP 2: Age */}
+        {currentStepIndex === 2 && (
           <div className="animate-fade-in">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <div
@@ -871,8 +1120,8 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
           </div>
         )}
 
-        {/* STEP 2: Location (Progressive Cascading Selector: State -> District -> Taluka/Tehsil/Mandal/Block -> Village) */}
-        {currentStepIndex === 2 && (
+        {/* STEP 3: Location (Progressive Cascading Selector) */}
+        {currentStepIndex === 3 && (
           <div className="animate-fade-in">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
               <div
@@ -940,8 +1189,8 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
           </div>
         )}
 
-        {/* STEP 3: Business Type (Open Spoken/Typed Any Business) */}
-        {currentStepIndex === 3 && (
+        {/* STEP 4: Business Type */}
+        {currentStepIndex === 4 && (
           <div className="animate-fade-in">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <div
@@ -1027,8 +1276,8 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
           </div>
         )}
 
-        {/* STEP 4: Budget / Own Capital */}
-        {currentStepIndex === 4 && (
+        {/* STEP 5: Budget / Own Capital */}
+        {currentStepIndex === 5 && (
           <div className="animate-fade-in">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <div
@@ -1122,8 +1371,8 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
           </div>
         )}
 
-        {/* STEP 5: Advice Needed */}
-        {currentStepIndex === 5 && (
+        {/* STEP 6: Advice Needed */}
+        {currentStepIndex === 6 && (
           <div className="animate-fade-in">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <div
@@ -1217,8 +1466,8 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
           </div>
         )}
 
-        {/* STEP 6: Review & Final Confirmation */}
-        {currentStepIndex === 6 && (
+        {/* STEP 7: Review & Final Confirmation */}
+        {currentStepIndex === 7 && (
           <div className="animate-fade-in">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <div
@@ -1259,6 +1508,14 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: '8px' }}>
+                <span style={{ color: 'var(--text-secondary, #64748B)', fontSize: '0.88rem' }}>मोबाईल नंबर व पिन:</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#166534', fontWeight: 800, fontSize: '0.95rem' }}>
+                  <ShieldCheck size={16} />
+                  +91 {answers.mobile || mobileInput} (पिन सुरक्षित)
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F1F5F9', paddingBottom: '8px' }}>
                 <span style={{ color: 'var(--text-secondary, #64748B)', fontSize: '0.88rem' }}>{t.onboarding.qName}:</span>
                 <strong style={{ color: 'var(--text-primary, #0F172A)', fontSize: '0.98rem' }}>{answers.name || '—'}</strong>
               </div>
@@ -1296,63 +1553,51 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
                 </span>
               </div>
             </div>
-
-            {/* Optional Returning PIN Setup Card */}
-            <div
-              style={{
-                backgroundColor: '#F8FAFC',
-                borderRadius: '14px',
-                padding: '14px',
-                border: '1px solid #E2E8F0',
-                marginBottom: '16px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: '#475569', fontSize: '0.82rem', fontWeight: 700 }}>
-                <ShieldCheck size={16} color="#16A34A" />
-                <span>{t.onboarding.qMobilePin}</span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
-                <input
-                  type="tel"
-                  maxLength={10}
-                  value={answers.mobile || ''}
-                  onChange={(e) => setAnswers((prev) => ({ ...prev, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
-                  placeholder={t.onboarding.placeholderMobile}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    border: '1px solid #CBD5E1',
-                    fontSize: '0.9rem',
-                    backgroundColor: '#FFFFFF'
-                  }}
-                />
-                <input
-                  type="password"
-                  maxLength={4}
-                  value={answers.pin || ''}
-                  onChange={(e) => setAnswers((prev) => ({ ...prev, pin: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                  placeholder={t.onboarding.placeholderPin}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    border: '1px solid #CBD5E1',
-                    fontSize: '0.9rem',
-                    backgroundColor: '#FFFFFF',
-                    letterSpacing: '2px'
-                  }}
-                />
-              </div>
-            </div>
           </div>
         )}
       </div>
 
       {/* Bottom Action Controls */}
       <div style={{ marginTop: '20px' }}>
-        {currentStepIndex < 6 ? (
+        {currentStepIndex === 0 ? (
+          /* Step 0: Mandatory Verify & Proceed */
+          <button
+            type="button"
+            onClick={handleStep0Auth}
+            disabled={isAuthLoading}
+            style={{
+              width: '100%',
+              minHeight: '58px',
+              backgroundColor: 'var(--primary, #C2410C)',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '16px',
+              padding: '16px 24px',
+              fontSize: '1.1rem',
+              fontWeight: 800,
+              cursor: isAuthLoading ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              boxShadow: '0 8px 20px rgba(194, 65, 12, 0.3)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <span>
+              {isAuthLoading
+                ? '...'
+                : language === 'mr'
+                ? 'पडताळणी करा आणि पुढे जा'
+                : language === 'hi'
+                ? 'सत्यापित करें और आगे बढ़ें'
+                : 'Verify & Proceed'}
+            </span>
+            <ArrowRight size={22} />
+          </button>
+        ) : currentStepIndex < TOTAL_STEPS - 1 ? (
+          /* Steps 1 to 6: Progression with Voice Trigger */
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Microphone Trigger Button */}
             {isVoiceSupported && (
               <button
                 type="button"
@@ -1377,10 +1622,9 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
               </button>
             )}
 
-            {/* Next / Proceed Button */}
             {(() => {
               const isLocationIncomplete =
-                currentStepIndex === 2 &&
+                currentStepIndex === 3 &&
                 (!answers.village || !answers.district || !answers.state || !answers.block);
               return (
                 <button
@@ -1394,14 +1638,15 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
                     color: '#FFFFFF',
                     border: 'none',
                     borderRadius: '18px',
-                    fontSize: '1.15rem',
+                    padding: '16px 24px',
+                    fontSize: '1.1rem',
                     fontWeight: 800,
+                    cursor: isLocationIncomplete ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
-                    cursor: isLocationIncomplete ? 'not-allowed' : 'pointer',
-                    boxShadow: isLocationIncomplete ? 'none' : '0 4px 14px rgba(194, 65, 12, 0.35)',
+                    gap: '10px',
+                    boxShadow: isLocationIncomplete ? 'none' : '0 8px 20px rgba(194, 65, 12, 0.3)',
                     transition: 'all 0.2s ease'
                   }}
                 >
@@ -1412,10 +1657,10 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
             })()}
           </div>
         ) : (
+          /* Step 7: Final Submission */
           <button
             type="button"
             onClick={handleFinalSubmit}
-            disabled={isAuthLoading}
             style={{
               width: '100%',
               minHeight: '58px',
@@ -1423,151 +1668,29 @@ export const VoiceOnboardingFlow: React.FC<VoiceOnboardingFlowProps> = ({
               color: '#FFFFFF',
               border: 'none',
               borderRadius: '18px',
-              fontSize: '1.2rem',
+              padding: '16px 24px',
+              fontSize: '1.15rem',
               fontWeight: 800,
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '10px',
-              cursor: 'pointer',
-              boxShadow: '0 4px 16px rgba(22, 163, 74, 0.35)'
+              boxShadow: '0 8px 24px rgba(22, 163, 74, 0.35)',
+              transition: 'all 0.2s ease'
             }}
           >
+            <span>
+              {language === 'mr'
+                ? 'माझे खाते तयार करा आणि सुरू करा'
+                : language === 'hi'
+                ? 'मेरा खाता बनाएं और शुरू करें'
+                : 'Create Account & Launch Dashboard'}
+            </span>
             <Sparkles size={22} />
-            <span>{isAuthLoading ? '...' : t.onboarding.startJourney}</span>
           </button>
         )}
       </div>
-
-      {/* Returning User Quick Login Modal */}
-      {isLoginModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-          }}
-          onClick={() => setIsLoginModalOpen(false)}
-        >
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '20px',
-              padding: '24px',
-              width: '100%',
-              maxWidth: '420px',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '10px',
-                  backgroundColor: 'rgba(194, 65, 12, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <Lock size={20} color="var(--primary, #C2410C)" />
-              </div>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                {t.onboarding.loginModalTitle}
-              </h3>
-            </div>
-
-            {loginError && (
-              <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', padding: '8px 12px', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '14px' }}>
-                ⚠️ {loginError}
-              </div>
-            )}
-
-            <form onSubmit={handleReturningLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>
-                  <Phone size={14} style={{ display: 'inline', marginRight: '4px' }} />
-                  {t.onboarding.qMobile}
-                </label>
-                <input
-                  type="tel"
-                  maxLength={10}
-                  value={loginMobile}
-                  onChange={(e) => setLoginMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="98XXXXXXXX"
-                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1.5px solid #CBD5E1', fontSize: '1rem', boxSizing: 'border-box' }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>
-                  <KeyRound size={14} style={{ display: 'inline', marginRight: '4px' }} />
-                  {language === 'en' ? '4-Digit PIN' : '४-अंकी सुरक्षा पिन'}
-                </label>
-                <input
-                  type="password"
-                  maxLength={4}
-                  value={loginPin}
-                  onChange={(e) => setLoginPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="••••"
-                  style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1.5px solid #CBD5E1', fontSize: '1.25rem', letterSpacing: '4px', boxSizing: 'border-box' }}
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isAuthLoading}
-                style={{
-                  marginTop: '6px',
-                  backgroundColor: 'var(--primary, #C2410C)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  fontSize: '1rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-              >
-                <span>{isAuthLoading ? '...' : t.onboarding.loginButton}</span>
-                <ArrowRight size={18} />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsLoginModalOpen(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#64748B',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  textDecoration: 'underline'
-                }}
-              >
-                {t.common.cancel}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Language Selection Modal inside Onboarding */}
       {isLangModalOpen && (

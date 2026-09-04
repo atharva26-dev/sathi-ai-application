@@ -24,7 +24,7 @@ export const MentorRoadmapScreen: React.FC<MentorRoadmapScreenProps> = ({
   onNavigate,
   onAskSaathi
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { speak } = useVoice();
   const [tasks, setTasks] = useState<MentorTask[]>(() => mentorService.getTasks());
   const [activeTimeframe, setActiveTimeframe] = useState<
@@ -36,7 +36,13 @@ export const MentorRoadmapScreen: React.FC<MentorRoadmapScreenProps> = ({
     setTasks(updated);
     const target = updated.find((t) => t.id === taskId);
     if (target?.isCompleted) {
-      speak('अभिनंदन! हे काम पूर्ण झाले म्हणून नोंदवले आहे.');
+      speak(
+        language === 'mr'
+          ? 'अभिनंदन! हे काम पूर्ण झाले म्हणून नोंदवले आहे.'
+          : language === 'hi'
+          ? 'बधाई! यह कार्य पूर्ण चिह्नित कर दिया गया है।'
+          : 'Congratulations! This task is marked as completed.'
+      );
     }
   };
 
@@ -58,7 +64,8 @@ export const MentorRoadmapScreen: React.FC<MentorRoadmapScreenProps> = ({
 
         <div style={{ textAlign: 'right' }}>
           <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#059669', backgroundColor: '#DCFCE7', padding: '4px 10px', borderRadius: 'var(--radius-full)' }}>
-            ✓ {completedCount}/{tasks.length} कामे पूर्ण
+            ✓ {completedCount}/{tasks.length}{' '}
+            {language === 'mr' ? 'कामे पूर्ण' : language === 'hi' ? 'कार्य पूर्ण' : 'tasks done'}
           </span>
         </div>
       </div>
@@ -110,7 +117,7 @@ export const MentorRoadmapScreen: React.FC<MentorRoadmapScreenProps> = ({
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
               <button
                 onClick={() => handleToggle(task.id)}
-                aria-label={task.isCompleted ? 'पूर्ण झाले' : 'अपूर्ण'}
+                aria-label={task.isCompleted ? (language === 'en' ? 'Completed' : 'पूर्ण') : (language === 'en' ? 'Incomplete' : 'अपूर्ण')}
                 style={{
                   width: '28px',
                   height: '28px',
@@ -179,7 +186,13 @@ export const MentorRoadmapScreen: React.FC<MentorRoadmapScreenProps> = ({
           className="btn-primary"
           style={{ flex: 2, minHeight: '48px', borderRadius: '14px' }}
         >
-          <span>🎙️ साथीला कोणताही प्रश्न विचारा</span>
+          <span>
+            {language === 'mr'
+              ? '🎙️ साथीला कोणताही प्रश्न विचारा'
+              : language === 'hi'
+              ? '🎙️ साथी से कोई भी प्रश्न पूछें'
+              : '🎙️ Ask Saathi Anything'}
+          </span>
           <ChevronRight size={18} />
         </button>
         <button
@@ -188,7 +201,7 @@ export const MentorRoadmapScreen: React.FC<MentorRoadmapScreenProps> = ({
           style={{ flex: 1, minHeight: '48px', borderRadius: '14px' }}
         >
           <ArrowLeft size={16} />
-          <span>मुख्य</span>
+          <span>{t.navigation.home}</span>
         </button>
       </div>
     </div>

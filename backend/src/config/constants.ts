@@ -3,29 +3,9 @@
 // ==============================================================================
 
 export const SUPPORTED_LANGUAGES = [
-  'as',
-  'bn',
-  'brx',
-  'doi',
   'en',
-  'gu',
   'hi',
-  'kn',
-  'ks',
-  'kok',
-  'mai',
-  'ml',
-  'mni',
-  'mr',
-  'ne',
-  'or',
-  'pa',
-  'sa',
-  'sat',
-  'sd',
-  'ta',
-  'te',
-  'ur'
+  'mr'
 ] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 

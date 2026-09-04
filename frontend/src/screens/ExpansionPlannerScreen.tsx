@@ -9,10 +9,15 @@ interface ExpansionPlannerScreenProps {
 }
 
 export const ExpansionPlannerScreen: React.FC<ExpansionPlannerScreenProps> = ({ onNavigate }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const phases = marketingService.getExpansionRoadmap();
 
-  const voiceText = `व्यवसाय वाढवताना घाई करू नका. पहिल्या ३ महिन्यांत केवळ ५ हॉटेल्सना नियमित पुरवठा स्थिर करा आणि उधारी वेळेत वसूल होऊ द्या. बँकेचा हप्ता सलग ६ महिने वेळेत भरल्याशिवाय नवीन गुंतवणूक करू नका.`;
+  const voiceText =
+    language === 'mr'
+      ? `व्यवसाय वाढवताना घाई करू नका. पहिल्या ३ महिन्यांत केवळ ५ हॉटेल्सना नियमित पुरवठा स्थिर करा आणि उधारी वेळेत वसूल होऊ द्या. बँकेचा हप्ता सलग ६ महिने वेळेत भरल्याशिवाय नवीन गुंतवणूक करू नका.`
+      : language === 'hi'
+      ? `व्यवसाय विस्तार में जल्दबाजी न करें। पहले 3 महीनों में केवल 5 होटलों को नियमित आपूर्ति स्थिर करें और उधारी समय पर वसूलें। बैंक की किस्त लगातार 6 महीने समय पर चुकाए बिना नया निवेश न करें।`
+      : `Do not rush into business expansion. In the first 3 months, stabilize regular supply to 5 clients and ensure strict credit recovery before reinvesting profits.`;
 
   return (
     <div className="screen-content animate-fade-in">
@@ -82,13 +87,17 @@ export const ExpansionPlannerScreen: React.FC<ExpansionPlannerScreenProps> = ({ 
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '0.8rem', backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: '10px', marginBottom: '12px' }}>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>पुनर्गंतवणूक:</span>
+                <span style={{ color: 'var(--text-muted)' }}>
+                  {language === 'mr' ? 'पुनर्गंतवणूक:' : language === 'hi' ? 'पुनर्निवेश:' : 'Reinvestment:'}
+                </span>
                 <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                   {phase.reinvestmentPlan}
                 </div>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>क्षमता वाढ:</span>
+                <span style={{ color: 'var(--text-muted)' }}>
+                  {language === 'mr' ? 'क्षमता वाढ:' : language === 'hi' ? 'क्षमता विस्तार:' : 'Capacity Growth:'}
+                </span>
                 <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                   {phase.capacityAddition}
                 </div>
@@ -127,7 +136,13 @@ export const ExpansionPlannerScreen: React.FC<ExpansionPlannerScreenProps> = ({ 
           className="btn-primary"
           style={{ flex: 2, minHeight: '48px', borderRadius: '14px' }}
         >
-          <span>👨‍🏫 माझा कृती आराखडा (टास्क) पाहा</span>
+          <span>
+            {language === 'mr'
+              ? '👨‍🏫 माझा कृती आराखडा (टास्क) पाहा'
+              : language === 'hi'
+              ? '👨‍🏫 मेरी कार्य योजना (टास्क) देखें'
+              : '👨‍🏫 View Action Tasks & Roadmap'}
+          </span>
           <ChevronRight size={18} />
         </button>
         <button
@@ -136,7 +151,7 @@ export const ExpansionPlannerScreen: React.FC<ExpansionPlannerScreenProps> = ({ 
           style={{ flex: 1, minHeight: '48px', borderRadius: '14px' }}
         >
           <ArrowLeft size={16} />
-          <span>मुख्य पान</span>
+          <span>{t.navigation.home}</span>
         </button>
       </div>
     </div>

@@ -70,11 +70,13 @@ export const MarketGapScreen: React.FC<MarketGapScreenProps> = ({ onNavigate }) 
     };
   }, [profile.desiredBusiness, profile.village, profile.district, profile.ownCapital, radiusKm, language]);
 
-  const activeBusiness = profile.desiredBusiness || (language === 'en' ? 'Micro-Enterprise' : 'सूक्ष्म व्यवसाय');
+  const activeBusiness = profile.desiredBusiness || (language === 'en' ? 'Micro-Enterprise' : language === 'hi' ? 'सूक्ष्म उद्यम' : 'सूक्ष्म व्यवसाय');
   const activeLocation = profile.village
     ? `${profile.village}${profile.district ? `, ${profile.district}` : ''}`
     : language === 'en'
     ? 'Local Area'
+    : language === 'hi'
+    ? 'स्थानीय क्षेत्र'
     : 'स्थानिक परिसर';
 
   const storyVoiceText =

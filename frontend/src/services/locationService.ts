@@ -53,26 +53,29 @@ export interface LocationVillage {
   longitude?: number;
 }
 
-const API_BASE = '/api/v1/location';
+export interface DistrictDataChunk {
+  state: string;
+  district: string;
+  subdistricts: Record<string, string[]>;
+  pincodes: Record<string, string>;
+}
 
-// Baseline fallback states in case user is completely offline during first render
-const FALLBACK_STATES: LocationState[] = ALL_INDIA_STATES;
-
-// Offline verified fallback districts covering all 28 states and 8 union territories
-const FALLBACK_DISTRICTS: LocationDistrict[] = ALL_INDIA_DISTRICTS;
-
-// Offline verified fallback subdistricts (talukas / tehsils / mandals / blocks)
-const FALLBACK_SUBDISTRICTS: LocationSubDistrict[] = ALL_INDIA_SUBDISTRICTS;
-
-// Offline verified fallback villages with authentic PIN codes
-const FALLBACK_VILLAGES: LocationVillage[] = ALL_INDIA_VILLAGES;
+export const slugifyLocation = (text: string): string => {
+  return (text || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+};
 
 export const getSubDistrictLabel = (
-  stateCode: number,
+  stateCodeOrName: number | string,
   lang: 'mr' | 'hi' | 'en'
 ): { labelEn: string; labelNative: string; placeholder: string } => {
+  const str = String(stateCodeOrName).toLowerCase();
+
   // 1. Maharashtra, Gujarat, Goa -> Taluka
-  if (stateCode === 27 || stateCode === 24 || stateCode === 30) {
+  if (str === '27' || str === '24' || str === '30' || str.includes('maharashtra') || str.includes('gujarat') || str.includes('goa')) {
     return {
       labelEn: 'Taluka',
       labelNative: lang === 'mr' ? 'तालुका' : lang === 'hi' ? 'तालुका' : 'Taluka',
@@ -81,7 +84,7 @@ export const getSubDistrictLabel = (
   }
 
   // 2. Andhra Pradesh, Telangana -> Mandal
-  if (stateCode === 28 || stateCode === 36) {
+  if (str === '28' || str === '36' || str.includes('andhra') || str.includes('telangana')) {
     return {
       labelEn: 'Mandal',
       labelNative: lang === 'mr' ? 'मंडल' : lang === 'hi' ? 'मंडल' : 'Mandal',
@@ -90,7 +93,7 @@ export const getSubDistrictLabel = (
   }
 
   // 3. Tamil Nadu, Karnataka, Kerala -> Taluk
-  if (stateCode === 33 || stateCode === 29 || stateCode === 32) {
+  if (str === '33' || str === '29' || str === '32' || str.includes('tamil') || str.includes('karnataka') || str.includes('kerala')) {
     return {
       labelEn: 'Taluk',
       labelNative: lang === 'mr' ? 'तालुक' : lang === 'hi' ? 'तालुक' : 'Taluk',
@@ -99,7 +102,10 @@ export const getSubDistrictLabel = (
   }
 
   // 4. Bihar, Jharkhand, West Bengal, Odisha, Assam -> Block
-  if (stateCode === 10 || stateCode === 20 || stateCode === 19 || stateCode === 21 || stateCode === 18) {
+  if (
+    str === '10' || str === '20' || str === '19' || str === '21' || str === '18' ||
+    str.includes('bihar') || str.includes('jharkhand') || str.includes('bengal') || str.includes('odisha') || str.includes('assam')
+  ) {
     return {
       labelEn: 'Block',
       labelNative: lang === 'mr' ? 'प्रखंड / ब्लॉक' : lang === 'hi' ? 'प्रखंड / ब्लॉक' : 'Block',
@@ -107,7 +113,7 @@ export const getSubDistrictLabel = (
     };
   }
 
-  // 5. Rajasthan, Uttar Pradesh, MP, Haryana, Punjab, HP, UK, Delhi, J&K -> Tehsil
+  // 5. Default: Tehsil
   return {
     labelEn: 'Tehsil',
     labelNative: lang === 'mr' ? 'तहसील' : lang === 'hi' ? 'तहसील' : 'Tehsil',
@@ -115,108 +121,288 @@ export const getSubDistrictLabel = (
   };
 };
 
+// In-memory caches
+let cachedStates: LocationState[] | null = null;
+let cachedDistrictsMap: Record<string, string[]> | null = null;
+const cachedDistrictChunks: Record<string, DistrictDataChunk> = {};
+
 export const locationService = {
   /**
-   * Fetch all 36 Indian States and UTs
+   * Fetch all States and UTs from LGD hierarchy
    */
   async getStates(): Promise<LocationState[]> {
-    const cacheKey = 'saathi_cache_states';
+    if (cachedStates && cachedStates.length > 0) {
+      return cachedStates;
+    }
+
     try {
-      const res = await fetch(`${API_BASE}/states`);
+      const res = await fetch('/data/locations/states.json');
       if (res.ok) {
-        const json = await res.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          storageService.set(cacheKey, json.data);
-          return json.data;
+        const list: Array<{ id: string; name: string }> = await res.json();
+        if (Array.isArray(list) && list.length > 0) {
+          cachedStates = list.map((st, idx) => {
+            const fallback = ALL_INDIA_STATES.find(
+              (f) => f.name.toLowerCase() === st.name.toLowerCase()
+            );
+            return {
+              code: fallback ? fallback.code : idx + 1,
+              name: st.name,
+              category: fallback ? fallback.category : 'State',
+              nameNative: fallback ? fallback.nameNative : { mr: st.name, hi: st.name, en: st.name }
+            };
+          });
+          return cachedStates;
         }
       }
     } catch (err) {
-      console.warn('Network fetch states failed, using offline cache:', err);
+      console.warn('Could not load /data/locations/states.json, using fallback:', err);
     }
 
-    const cached = storageService.get<LocationState[] | null>(cacheKey, null);
-    return cached && cached.length > 0 ? cached : FALLBACK_STATES;
+    cachedStates = ALL_INDIA_STATES;
+    return cachedStates;
   },
 
   /**
-   * Fetch districts for selected State code
+   * Fetch districts map from LGD hierarchy
    */
-  async getDistricts(stateCode: number): Promise<LocationDistrict[]> {
-    const cacheKey = `saathi_cache_districts_${stateCode}`;
-    try {
-      const res = await fetch(`${API_BASE}/districts?stateCode=${stateCode}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          storageService.set(cacheKey, json.data);
-          return json.data;
-        }
-      }
-    } catch (err) {
-      console.warn(`Network fetch districts for state ${stateCode} failed:`, err);
+  async getDistrictsMap(): Promise<Record<string, string[]>> {
+    if (cachedDistrictsMap) {
+      return cachedDistrictsMap;
     }
 
-    const cached = storageService.get<LocationDistrict[] | null>(cacheKey, null);
-    if (cached && cached.length > 0) return cached;
-    return FALLBACK_DISTRICTS.filter((d) => d.stateCode === stateCode);
+    try {
+      const res = await fetch('/data/locations/districts.json');
+      if (res.ok) {
+        cachedDistrictsMap = await res.json();
+        return cachedDistrictsMap || {};
+      }
+    } catch (err) {
+      console.warn('Could not load /data/locations/districts.json:', err);
+    }
+
+    // Build fallback map from ALL_INDIA_DISTRICTS
+    const map: Record<string, string[]> = {};
+    ALL_INDIA_STATES.forEach((st) => {
+      const dists = ALL_INDIA_DISTRICTS.filter((d) => d.stateCode === st.code).map((d) => d.name);
+      map[st.name] = dists;
+    });
+    cachedDistrictsMap = map;
+    return cachedDistrictsMap;
   },
 
   /**
-   * Fetch sub-districts (Taluka/Tehsil/Mandal/Block) for selected District code
+   * Fetch districts for a given State name or code
    */
-  async getSubDistricts(districtCode: number): Promise<LocationSubDistrict[]> {
-    const cacheKey = `saathi_cache_subdistricts_${districtCode}`;
-    try {
-      const res = await fetch(`${API_BASE}/subdistricts?districtCode=${districtCode}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          storageService.set(cacheKey, json.data);
-          return json.data;
-        }
+  async getDistricts(stateCodeOrName: number | string): Promise<LocationDistrict[]> {
+    const states = await this.getStates();
+    let stateName = '';
+    let stateCode = 27;
+
+    if (typeof stateCodeOrName === 'number') {
+      const found = states.find((s) => s.code === stateCodeOrName);
+      if (found) {
+        stateName = found.name;
+        stateCode = found.code;
       }
-    } catch (err) {
-      console.warn(`Network fetch subdistricts for district ${districtCode} failed:`, err);
+    } else {
+      stateName = String(stateCodeOrName);
+      const found = states.find((s) => s.name.toLowerCase() === stateName.toLowerCase());
+      if (found) {
+        stateCode = found.code;
+        stateName = found.name;
+      }
     }
 
-    const cached = storageService.get<LocationSubDistrict[] | null>(cacheKey, null);
-    if (cached && cached.length > 0) return cached;
-    return FALLBACK_SUBDISTRICTS.filter((sd) => sd.districtCode === districtCode);
+    const distMap = await this.getDistrictsMap();
+    const matchingKey = Object.keys(distMap).find(
+      (k) => k.toLowerCase() === stateName.toLowerCase()
+    );
+
+    const distNames = matchingKey ? distMap[matchingKey] || [] : [];
+    if (distNames.length > 0) {
+      return distNames.map((dName, idx) => {
+        const fb = ALL_INDIA_DISTRICTS.find(
+          (d) => d.stateCode === stateCode && d.name.toLowerCase() === dName.toLowerCase()
+        );
+        return {
+          code: fb ? fb.code : stateCode * 1000 + idx,
+          stateCode,
+          name: dName,
+          nameNative: fb ? fb.nameNative : { mr: dName, hi: dName, en: dName }
+        };
+      });
+    }
+
+    return ALL_INDIA_DISTRICTS.filter((d) => d.stateCode === stateCode);
   },
 
   /**
-   * Fetch villages for selected sub-district with optional text search filter
+   * Load the partitioned district chunk containing subdistricts, villages, and PIN codes
    */
-  async getVillages(subDistrictCode: number, query?: string): Promise<LocationVillage[]> {
-    const qParam = query ? `&q=${encodeURIComponent(query)}` : '';
-    const cacheKey = `saathi_cache_villages_${subDistrictCode}`;
-    try {
-      const res = await fetch(`${API_BASE}/villages?subdistrictCode=${subDistrictCode}${qParam}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && Array.isArray(json.data)) {
-          if (!query) {
-            storageService.set(cacheKey, json.data);
-          }
-          return json.data;
-        }
-      }
-    } catch (err) {
-      console.warn(`Network fetch villages for subdistrict ${subDistrictCode} failed:`, err);
+  async getDistrictDetails(stateName: string, districtName: string): Promise<DistrictDataChunk | null> {
+    const key = `${slugifyLocation(stateName)}_${slugifyLocation(districtName)}`;
+    if (cachedDistrictChunks[key]) {
+      return cachedDistrictChunks[key];
     }
 
-    const cached = storageService.get<LocationVillage[] | null>(cacheKey, null);
-    const list = cached && cached.length > 0 ? cached : FALLBACK_VILLAGES.filter((v) => v.subDistrictCode === subDistrictCode);
-    if (query && query.trim()) {
-      const q = query.toLowerCase().trim();
-      return list.filter(
-        (v) =>
-          v.name.toLowerCase().includes(q) ||
-          v.nameNative.mr.toLowerCase().includes(q) ||
-          v.nameNative.hi.toLowerCase().includes(q) ||
-          v.pincode.includes(q)
+    try {
+      const res = await fetch(`/data/locations/districts/${key}.json`);
+      if (res.ok) {
+        const chunk: DistrictDataChunk = await res.json();
+        cachedDistrictChunks[key] = chunk;
+        return chunk;
+      }
+    } catch (err) {
+      console.warn(`Could not load district chunk for ${key}:`, err);
+    }
+
+    return null;
+  },
+
+  /**
+   * Fetch sub-districts (Talukas / Tehsils / Mandals / Blocks) for selected District
+   */
+  async getSubDistricts(
+    districtCodeOrName: number | string,
+    stateName?: string
+  ): Promise<LocationSubDistrict[]> {
+    let dName = String(districtCodeOrName);
+    let sName = stateName || '';
+
+    // If district is a numeric code, find its name
+    if (typeof districtCodeOrName === 'number') {
+      const fb = ALL_INDIA_DISTRICTS.find((d) => d.code === districtCodeOrName);
+      if (fb) {
+        dName = fb.name;
+        if (!sName) {
+          const st = ALL_INDIA_STATES.find((s) => s.code === fb.stateCode);
+          if (st) sName = st.name;
+        }
+      }
+    }
+
+    if (!sName) {
+      sName = 'Maharashtra'; // Default fallback
+    }
+
+    const chunk = await this.getDistrictDetails(sName, dName);
+    if (chunk && chunk.subdistricts) {
+      const sdNames = Object.keys(chunk.subdistricts).sort();
+      const distCode = typeof districtCodeOrName === 'number' ? districtCodeOrName : 504;
+      return sdNames.map((name, idx) => {
+        const fb = ALL_INDIA_SUBDISTRICTS.find(
+          (sd) => sd.districtCode === distCode && sd.name.toLowerCase() === name.toLowerCase()
+        );
+        return {
+          code: fb ? fb.code : distCode * 100 + idx,
+          districtCode: distCode,
+          name,
+          nameNative: fb ? fb.nameNative : { mr: name, hi: name, en: name }
+        };
+      });
+    }
+
+    const distCode = typeof districtCodeOrName === 'number' ? districtCodeOrName : 504;
+    return ALL_INDIA_SUBDISTRICTS.filter((sd) => sd.districtCode === distCode);
+  },
+
+  /**
+   * Fetch villages for selected sub-district with optional query search
+   */
+  async getVillages(
+    subDistrictCodeOrName: number | string,
+    query?: string,
+    stateName?: string,
+    districtName?: string
+  ): Promise<LocationVillage[]> {
+    let sdName = String(subDistrictCodeOrName);
+    const sName = stateName || 'Maharashtra';
+    const dName = districtName || 'Sangli';
+
+    // If subdistrict is a numeric code, resolve name from fallback
+    if (typeof subDistrictCodeOrName === 'number') {
+      const fb = ALL_INDIA_SUBDISTRICTS.find((sd) => sd.code === subDistrictCodeOrName);
+      if (fb) {
+        sdName = fb.name;
+      }
+    }
+
+    const chunk = await this.getDistrictDetails(sName, dName);
+    if (chunk && chunk.subdistricts) {
+      // Find subdistrict matching
+      const matchingSdKey = Object.keys(chunk.subdistricts).find(
+        (k) => k.toLowerCase() === sdName.toLowerCase()
       );
+
+      const vList = matchingSdKey ? chunk.subdistricts[matchingSdKey] || [] : [];
+      const pincodes = chunk.pincodes || {};
+      const sdCode = typeof subDistrictCodeOrName === 'number' ? subDistrictCodeOrName : 4210;
+
+      let result: LocationVillage[] = vList.map((vName, idx) => {
+        const pin = pincodes[vName] || '';
+        const fb = ALL_INDIA_VILLAGES.find((fv) => fv.name.toLowerCase() === vName.toLowerCase());
+        return {
+          code: fb ? fb.code : sdCode * 1000 + idx,
+          subDistrictCode: sdCode,
+          name: vName,
+          nameNative: fb ? fb.nameNative : { mr: vName, hi: vName, en: vName },
+          pincode: pin || (fb ? fb.pincode : '')
+        };
+      });
+
+      if (query && query.trim()) {
+        const q = query.toLowerCase().trim();
+        result = result.filter(
+          (v) =>
+            v.name.toLowerCase().includes(q) ||
+            v.nameNative.mr.toLowerCase().includes(q) ||
+            v.nameNative.hi.toLowerCase().includes(q) ||
+            v.pincode.includes(q)
+        );
+      }
+
+      return result;
     }
-    return list;
+
+    const sdCode = typeof subDistrictCodeOrName === 'number' ? subDistrictCodeOrName : 4210;
+    return ALL_INDIA_VILLAGES.filter((v) => v.subDistrictCode === sdCode);
+  },
+
+  // Direct Hierarchy helper functions for direct cascading selectors
+  async getHierarchyStates(): Promise<string[]> {
+    const states = await this.getStates();
+    return states.map((s) => s.name);
+  },
+
+  async getHierarchyDistricts(stateName: string): Promise<string[]> {
+    const distMap = await this.getDistrictsMap();
+    const key = Object.keys(distMap).find((k) => k.toLowerCase() === stateName.toLowerCase());
+    return key ? distMap[key] || [] : [];
+  },
+
+  async getHierarchySubDistricts(stateName: string, districtName: string): Promise<string[]> {
+    const chunk = await this.getDistrictDetails(stateName, districtName);
+    return chunk && chunk.subdistricts ? Object.keys(chunk.subdistricts).sort() : [];
+  },
+
+  async getHierarchyVillages(
+    stateName: string,
+    districtName: string,
+    subDistrictName: string
+  ): Promise<Array<{ name: string; pincode: string }>> {
+    const chunk = await this.getDistrictDetails(stateName, districtName);
+    if (!chunk || !chunk.subdistricts) return [];
+
+    const key = Object.keys(chunk.subdistricts).find(
+      (k) => k.toLowerCase() === subDistrictName.toLowerCase()
+    );
+    if (!key) return [];
+
+    const vils = chunk.subdistricts[key] || [];
+    const pins = chunk.pincodes || {};
+    return vils.map((v) => ({
+      name: v,
+      pincode: pins[v] || ''
+    }));
   }
 };

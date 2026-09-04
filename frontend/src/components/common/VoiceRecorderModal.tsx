@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Mic, MicOff, X, Send, Volume2, RotateCcw, Edit3, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Mic, MicOff, X, Send, Volume2, RotateCcw, Edit3, Sparkles, Loader2, AlertCircle } from 'lucide-react';
 import { useVoice } from '../../context/VoiceContext';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -18,21 +18,46 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({
   initialPrompt,
   quickOptions = []
 }) => {
-  const { isListening, startListening, stopListening, transcript, clearTranscript, isVoiceSupported } = useVoice();
-  const { t } = useLanguage();
+  const {
+    isListening,
+    isProcessingVoice,
+    startListening,
+    stopListening,
+    recordMicrophoneAudio,
+    transcript,
+    clearTranscript,
+    isVoiceSupported,
+    voiceError
+  } = useVoice();
+  const { t, language } = useLanguage();
   const [manualText, setManualText] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [activeRecordingStop, setActiveRecordingStop] = useState<(() => Promise<string>) | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       clearTranscript();
       setManualText('');
       setIsEditing(false);
-      // Automatically begin listening when opened
-      startListening((result) => {
+
+      // Start recording with MediaRecorder + IndicConformer
+      recordMicrophoneAudio((result) => {
         setManualText(result);
-      });
+      })
+        .then((session) => {
+          setActiveRecordingStop(() => session.stop);
+        })
+        .catch(() => {
+          // Fallback to Web Speech API
+          startListening((result) => {
+            setManualText(result);
+          });
+        });
     } else {
+      if (activeRecordingStop) {
+        activeRecordingStop().catch(() => {});
+        setActiveRecordingStop(null);
+      }
       stopListening();
     }
   }, [isOpen]);
@@ -45,14 +70,29 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleToggleListen = () => {
+  const handleToggleListen = async () => {
     if (isListening) {
-      stopListening();
+      if (activeRecordingStop) {
+        try {
+          const res = await activeRecordingStop();
+          setManualText(res);
+        } catch {}
+        setActiveRecordingStop(null);
+      } else {
+        stopListening();
+      }
     } else {
       clearTranscript();
-      startListening((result) => {
-        setManualText(result);
-      });
+      try {
+        const session = await recordMicrophoneAudio((res) => {
+          setManualText(res);
+        });
+        setActiveRecordingStop(() => session.stop);
+      } catch {
+        startListening((result) => {
+          setManualText(result);
+        });
+      }
     }
   };
 
@@ -60,6 +100,10 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({
     const textToSend = manualText.trim() || transcript.trim();
     if (textToSend) {
       onSendMessage(textToSend, isListening || !isEditing);
+      if (activeRecordingStop) {
+        activeRecordingStop().catch(() => {});
+        setActiveRecordingStop(null);
+      }
       stopListening();
       onClose();
     }
@@ -110,11 +154,13 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({
         <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '1.2rem' }}>🎙️</span>
-            <h2 style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>SAATHI शी बोला</h2>
+            <h2 style={{ fontSize: '1.2rem', color: 'var(--text-primary)', fontWeight: 800 }}>
+              {language === 'mr' ? 'SAATHI शी बोला' : language === 'hi' ? 'SAATHI से बोलें' : 'Talk to SAATHI'}
+            </h2>
           </div>
           <button
             onClick={onClose}
-            aria-label="बंद करा"
+            aria-label={t.common.close}
             style={{
               width: '36px',
               height: '36px',
@@ -130,7 +176,12 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({
 
         {/* Prompt guidance */}
         <p style={{ textAlign: 'center', fontSize: '0.92rem', color: 'var(--text-muted)', marginBottom: '20px' }}>
-          {initialPrompt || 'व्यवसाय, नफा, कर्ज किंवा ग्राहकांबद्दल तुमचा प्रश्न मोकळेपणाने विचारा.'}
+          {initialPrompt ||
+            (language === 'mr'
+              ? 'व्यवसाय, नफा, कर्ज किंवा ग्राहकांबद्दल तुमचा प्रश्न मोकळेपणाने विचारा.'
+              : language === 'hi'
+              ? 'व्यवसाय, लाभ, ऋण या ग्राहकों के बारे में अपना प्रश्न पूछें।'
+              : 'Ask anything about your business, profits, loans, or customers.')}
         </p>
 
         {/* Big Interactive Microphone Pulse */}
@@ -153,28 +204,34 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({
 
           <button
             onClick={handleToggleListen}
+            disabled={isProcessingVoice}
             aria-label={isListening ? 'माइक थांबवा' : 'माइक सुरू करा'}
             style={{
               width: '90px',
               height: '90px',
               borderRadius: '50%',
-              backgroundColor: isListening ? '#DC2626' : 'var(--primary)',
+              backgroundColor: isProcessingVoice ? '#9CA3AF' : isListening ? '#DC2626' : 'var(--primary)',
               color: '#FFFFFF',
               boxShadow: isListening ? '0 0 25px rgba(220, 38, 38, 0.5)' : 'var(--shadow-primary)',
               position: 'relative',
               zIndex: 2,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              cursor: isProcessingVoice ? 'wait' : 'pointer'
             }}
           >
-            {isListening ? <MicOff size={38} /> : <Mic size={38} />}
+            {isProcessingVoice ? <Loader2 size={38} className="animate-spin" /> : isListening ? <MicOff size={38} /> : <Mic size={38} />}
           </button>
         </div>
 
         {/* Live Status indicator */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-          {isListening ? (
+          {isProcessingVoice ? (
+            <span style={{ fontWeight: 700, color: 'var(--primary-dark)', fontSize: '0.95rem' }}>
+              {language === 'mr' ? 'AI4Bharat आवाज तपासत आहे...' : language === 'hi' ? 'AI4Bharat आवाज पहचान रहा है...' : 'Processing with IndicConformer...'}
+            </span>
+          ) : isListening ? (
             <>
               <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
                 <span className="wave-bar" style={{ height: '14px', width: '3px', backgroundColor: 'var(--primary)' }}></span>
@@ -189,10 +246,32 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({
             </>
           ) : (
             <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-              माइक सुरू करण्यासाठी वरील बटण दाबा
+              {language === 'mr' ? 'माइक सुरू करण्यासाठी वरील बटण दाबा' : language === 'hi' ? 'माइक शुरू करने के लिए बटन दबाएं' : 'Tap microphone button to speak'}
             </span>
           )}
         </div>
+
+        {/* Error state display if mic fails */}
+        {voiceError && (
+          <div
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              backgroundColor: '#FEF2F2',
+              border: '1px solid #FCA5A5',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: '#991B1B',
+              fontSize: '0.82rem',
+              marginBottom: '12px'
+            }}
+          >
+            <AlertCircle size={16} style={{ flexShrink: 0 }} />
+            <span>{voiceError}</span>
+          </div>
+        )}
 
         {/* Transcript Box with Edit capability */}
         <div
@@ -208,7 +287,7 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              तुमचा आवाज / प्रश्न:
+              {language === 'mr' ? 'तुमचा आवाज / प्रश्न:' : language === 'hi' ? 'आपकी आवाज / प्रश्न:' : 'Your Voice / Query:'}
             </span>
             <div style={{ display: 'flex', gap: '8px' }}>
               {manualText && (
@@ -219,7 +298,7 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({
                   }}
                   style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minHeight: 'auto', padding: '2px 6px' }}
                 >
-                  <RotateCcw size={12} /> साफ करा
+                  <RotateCcw size={12} /> {language === 'mr' ? 'साफ करा' : language === 'hi' ? 'हटाएं' : 'Clear'}
                 </button>
               )}
             </div>
@@ -232,45 +311,46 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({
               setIsEditing(true);
             }}
             placeholder={
-              isVoiceSupported
+              language === 'mr'
                 ? 'बोला किंवा येथे थेट टाइप करा...'
-                : 'या फोनवर माइक उपलब्ध नाही. कृपया येथे टाइप करा.'
+                : language === 'hi'
+                ? 'बोलें या सीधे यहां टाइप करें...'
+                : 'Speak or type here directly...'
             }
             rows={3}
             style={{
               width: '100%',
               backgroundColor: 'transparent',
               border: 'none',
-              resize: 'none',
-              fontFamily: 'inherit',
-              fontSize: '1.05rem',
+              fontSize: '1rem',
               color: 'var(--text-primary)',
-              lineHeight: 1.4,
-              outline: 'none'
+              lineHeight: 1.45,
+              resize: 'none',
+              outline: 'none',
+              fontFamily: 'inherit'
             }}
           />
         </div>
 
-        {/* Quick Options chips for low literacy users */}
+        {/* Quick Suggestion Chips */}
         {quickOptions.length > 0 && (
           <div style={{ width: '100%', marginBottom: '16px' }}>
-            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px' }}>
-              किंवा खालील पर्याय निवडा:
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
+              {language === 'mr' ? 'वारंवार विचारले जाणारे प्रश्न:' : language === 'hi' ? 'अक्सर पूछे जाने वाले प्रश्न:' : 'Common Quick Queries:'}
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {quickOptions.map((opt, i) => (
                 <button
                   key={i}
                   onClick={() => handleQuickOptionClick(opt)}
                   style={{
-                    padding: '8px 14px',
+                    padding: '6px 12px',
                     borderRadius: 'var(--radius-full)',
-                    backgroundColor: 'var(--bg-card)',
-                    border: '1.5px solid var(--border-medium)',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    minHeight: '40px'
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-medium)',
+                    fontSize: '0.8rem',
+                    color: 'var(--text-secondary)',
+                    minHeight: 'auto'
                   }}
                 >
                   {opt}
@@ -280,31 +360,22 @@ export const VoiceRecorderModal: React.FC<VoiceRecorderModalProps> = ({
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div style={{ width: '100%', display: 'flex', gap: '10px' }}>
-          <button
-            onClick={onClose}
-            className="btn-secondary"
-            style={{ flex: 1, minHeight: '48px' }}
-          >
-            {t.common.cancel}
-          </button>
-
-          <button
-            onClick={handleSend}
-            disabled={!manualText.trim()}
-            className="btn-primary"
-            style={{
-              flex: 2,
-              minHeight: '48px',
-              opacity: manualText.trim() ? 1 : 0.5,
-              cursor: manualText.trim() ? 'pointer' : 'not-allowed'
-            }}
-          >
-            <Send size={18} />
-            <span>उत्तर पाठवा</span>
-          </button>
-        </div>
+        {/* Submit button */}
+        <button
+          onClick={handleSend}
+          disabled={!manualText.trim() || isProcessingVoice}
+          className="btn-primary"
+          style={{
+            width: '100%',
+            minHeight: '52px',
+            fontSize: '1.05rem',
+            opacity: manualText.trim() && !isProcessingVoice ? 1 : 0.5,
+            cursor: manualText.trim() && !isProcessingVoice ? 'pointer' : 'not-allowed'
+          }}
+        >
+          <Send size={18} />
+          <span>{language === 'mr' ? 'साथीला विचारा' : language === 'hi' ? 'साथी से पूछें' : 'Ask Saathi'}</span>
+        </button>
       </div>
     </div>
   );

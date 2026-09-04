@@ -32,7 +32,12 @@ const envSchema = z.object({
   AI_TIMEOUT_MS: z.string().default('10000').transform((val) => parseInt(val, 10)),
   AI_RETRY_COUNT: z.string().default('2').transform((val) => parseInt(val, 10)),
 
-  VOICE_PROVIDER: z.string().default('browser_native'),
+  VOICE_PROVIDER: z.string().default('ai4bharat'),
+  VOICE_PIPELINE_MODE: z.enum(['remote', 'local', 'fallback']).default((process.env.VOICE_PIPELINE_MODE as any) || 'fallback'),
+  AI4BHARAT_ASR_URL: z.string().default(process.env.AI4BHARAT_ASR_URL || 'http://localhost:8001/asr'),
+  AI4BHARAT_TTS_URL: z.string().default(process.env.AI4BHARAT_TTS_URL || 'http://localhost:8002/tts'),
+  AI4BHARAT_API_KEY: z.string().optional().default(process.env.AI4BHARAT_API_KEY || ''),
+
   RATE_LIMIT_STANDARD_PER_MINUTE: z.string().default('120').transform((val) => parseInt(val, 10)),
   RATE_LIMIT_AI_PER_MINUTE: z.string().default('30').transform((val) => parseInt(val, 10)),
   IDEMPOTENCY_TTL_SECONDS: z.string().default('3600').transform((val) => parseInt(val, 10))

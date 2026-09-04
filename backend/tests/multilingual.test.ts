@@ -7,23 +7,19 @@ import { aiOrchestrator } from '../src/ai/orchestrator.js';
 
 jest.setTimeout(30000);
 
-describe('SAATHI Master Indian Language & Multilingual System Test Suite', () => {
+describe('SAATHI Master Language System Test Suite (English, Hindi, Marathi Focused)', () => {
   // =========================================================================
-  // 1. SCHEDULED LANGUAGES CATALOG COVERAGE
+  // 1. FOCUSED LANGUAGES CATALOG COVERAGE
   // =========================================================================
-  describe('22 Scheduled Languages + English Catalog Integrity', () => {
-    it('Should contain 23 supported languages in the official catalog', () => {
-      expect(SUPPORTED_LANGUAGES.length).toBe(23);
-      expect(BACKEND_LANGUAGES.length).toBe(23);
+  describe('Focused Languages (en, hi, mr) Catalog Integrity', () => {
+    it('Should contain exactly 3 supported languages in the official catalog', () => {
+      expect(SUPPORTED_LANGUAGES.length).toBe(3);
+      expect(BACKEND_LANGUAGES.length).toBe(3);
     });
 
-    it('Should verify all 22 8th Schedule Indian languages are cataloged', () => {
-      const scheduledLanguages = [
-        'as', 'bn', 'brx', 'doi', 'gu', 'hi', 'kn', 'ks', 'kok',
-        'mai', 'ml', 'mni', 'mr', 'ne', 'or', 'pa', 'sa', 'sat',
-        'sd', 'ta', 'te', 'ur'
-      ];
-      for (const code of scheduledLanguages) {
+    it('Should verify English, Hindi, and Marathi are properly cataloged', () => {
+      const coreLanguages = ['en', 'hi', 'mr'] as const;
+      for (const code of coreLanguages) {
         expect(SUPPORTED_LANGUAGES).toContain(code);
         const def = getBackendLanguage(code);
         expect(def.code).toBe(code);
@@ -31,34 +27,33 @@ describe('SAATHI Master Indian Language & Multilingual System Test Suite', () =>
         expect(def.nativeName).toBeDefined();
         expect(def.script).toBeDefined();
         expect(def.speechLocale).toBeDefined();
+        expect(def.direction).toBe('ltr');
       }
-    });
-
-    it('Should verify RTL direction flags for Urdu, Kashmiri, and Sindhi', () => {
-      expect(getBackendLanguage('ur').direction).toBe('rtl');
-      expect(getBackendLanguage('ks').direction).toBe('rtl');
-      expect(getBackendLanguage('sd').direction).toBe('rtl');
-      expect(getBackendLanguage('mr').direction).toBe('ltr');
-      expect(getBackendLanguage('ta').direction).toBe('ltr');
-      expect(getBackendLanguage('en').direction).toBe('ltr');
     });
   });
 
   // =========================================================================
   // 2. AI ORCHESTRATOR MULTILINGUAL EXECUTION
   // =========================================================================
-  describe('AI Orchestrator Multi-Language Execution', () => {
-    const testLanguages = ['mr', 'hi', 'en', 'ta', 'te', 'bn', 'gu', 'kn', 'ml', 'pa', 'or', 'ur', 'as', 'ne'] as const;
+  describe('AI Orchestrator Execution for en, hi, mr', () => {
+    const testLanguages = ['mr', 'hi', 'en'] as const;
 
     for (const lang of testLanguages) {
       it(`Should execute AI advisory for language "${lang}" without errors`, async () => {
+        const query =
+          lang === 'mr'
+            ? 'व्यवसाय कसा सुरू करावा'
+            : lang === 'hi'
+            ? 'व्यापार कैसे शुरू करें'
+            : 'how to start a business';
+
         const res = await aiOrchestrator.handleUserMessage(
-          'how to start a business',
+          query,
           lang,
           {
             businessName: 'Tailoring & Garments',
             capital: 50000,
-            location: 'Coimbatore, Tamil Nadu'
+            location: 'Kundal, Sangli, Maharashtra'
           },
           `user-test-${lang}`
         );
@@ -105,41 +100,32 @@ describe('SAATHI Master Indian Language & Multilingual System Test Suite', () =>
       skillName: 'BusinessAdvisorSkill'
     };
 
-    it('Should PASS when Tamil response contains genuine Tamil script', () => {
-      const tamilResult: SkillExecutionResult = {
+    it('Should PASS when Marathi response contains genuine Devanagari script', () => {
+      const marathiResult: SkillExecutionResult = {
         ...baseResult,
-        answer: 'தையல் தொழில் தொடங்க ₹50,000 முதலீடு தேவைப்படும். ஆரம்பத்தில் 2 இயந்திரங்களை வாங்கவும்.'
+        answer: 'शिलाई व्यवसाय सुरू करण्यासाठी ₹५०,००० भांडवलाची आवश्यकता आहे. सुरुवातीला २ शिलाई मशिन खरेदी करा.'
       };
-      const review = responseReviewer.validateResponse(tamilResult, mockContext, 'ta', 'தையல் தொழில் தொடங்க');
+      const review = responseReviewer.validateResponse(marathiResult, mockContext, 'mr', 'व्यवसाय कसा सुरू करावा');
       expect(review.isValid).toBe(true);
     });
 
-    it('Should REJECT when Tamil response is primarily English with zero Tamil script', () => {
+    it('Should PASS when Hindi response contains genuine Devanagari script', () => {
+      const hindiResult: SkillExecutionResult = {
+        ...baseResult,
+        answer: 'सिलाई व्यवसाय शुरू करने के लिए ₹50,000 की पूंजी की आवश्यकता होगी। शुरुआत में दो मशीनें खरीदें।'
+      };
+      const review = responseReviewer.validateResponse(hindiResult, mockContext, 'hi', 'व्यापार कैसे शुरू करें');
+      expect(review.isValid).toBe(true);
+    });
+
+    it('Should REJECT when Marathi response is primarily English with zero Devanagari script', () => {
       const englishResult: SkillExecutionResult = {
         ...baseResult,
         answer: 'You can start this tailoring business with fifty thousand rupees by buying two machines.'
       };
-      const review = responseReviewer.validateResponse(englishResult, mockContext, 'ta', 'தையல் தொழில் தொடங்க');
+      const review = responseReviewer.validateResponse(englishResult, mockContext, 'mr', 'व्यवसाय कसा सुरू करावा');
       expect(review.isValid).toBe(false);
       expect(review.reasons.some((r) => r.includes('Language mismatch'))).toBe(true);
-    });
-
-    it('Should PASS when Bengali response contains genuine Bengali script', () => {
-      const bengaliResult: SkillExecutionResult = {
-        ...baseResult,
-        answer: 'দর্জি ব্যবসা শুরু করতে ৫০,০০০ টাকা পুঁজির প্রয়োজন হবে। দুটি সেলাই মেশিন কিনুন।'
-      };
-      const review = responseReviewer.validateResponse(bengaliResult, mockContext, 'bn', 'দর্জি ব্যবসা');
-      expect(review.isValid).toBe(true);
-    });
-
-    it('Should REJECT when Bengali response has zero Bengali script', () => {
-      const mismatchedResult: SkillExecutionResult = {
-        ...baseResult,
-        answer: 'Tailoring business can be started with fifty thousand capital in your local area easily.'
-      };
-      const review = responseReviewer.validateResponse(mismatchedResult, mockContext, 'bn', 'দর্জি ব্যবসা');
-      expect(review.isValid).toBe(false);
     });
 
     it('Should PASS English response with Latin characters', () => {
@@ -170,12 +156,12 @@ describe('SAATHI Master Indian Language & Multilingual System Test Suite', () =>
       expect(fullText).toContain('bihar');
     });
 
-    it('TEST: Tamil speaker in Maharashtra receives Maharashtra location intelligence', async () => {
+    it('TEST: Hindi speaker in Maharashtra receives Maharashtra location intelligence', async () => {
       const res = await aiOrchestrator.handleUserMessage(
-        'தொழில் தொடங்குவது எப்படி',
-        'ta',
+        'व्यापार कैसे शुरू करें',
+        'hi',
         { businessName: 'Tailoring & Garments', location: 'Palus, Sangli, Maharashtra', capital: 60000 },
-        'test-tamil-mh-user'
+        'test-hindi-mh-user'
       );
 
       expect(res.answer).toBeDefined();
@@ -183,17 +169,17 @@ describe('SAATHI Master Indian Language & Multilingual System Test Suite', () =>
       expect(fullText).toContain('palus');
     });
 
-    it('TEST: Telugu speaker in Andhra Pradesh receives AP location intelligence', async () => {
+    it('TEST: English speaker in Maharashtra receives Maharashtra location intelligence', async () => {
       const res = await aiOrchestrator.handleUserMessage(
-        'వ్యాపారం ఎలా ప్రారంభించాలి',
-        'te',
-        { businessName: 'Mobile & Electronics Repair', location: 'Tenali, Guntur, Andhra Pradesh', capital: 100000 },
-        'test-telugu-ap-user'
+        'how to start a business',
+        'en',
+        { businessName: 'Mobile & Electronics Repair', location: 'Kundal, Sangli, Maharashtra', capital: 100000 },
+        'test-en-mh-user'
       );
 
       expect(res.answer).toBeDefined();
       const fullText = (res.answer + ' ' + res.summary + ' ' + JSON.stringify(res.assumptions)).toLowerCase();
-      expect(fullText).toContain('tenali');
+      expect(fullText).toContain('kundal');
     });
   });
 });

@@ -90,7 +90,7 @@ export const WhatMovesCard: React.FC<WhatMovesCardProps> = ({ onNavigate }) => {
               </h3>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '3px', paddingLeft: '40px' }}>
-              {activeLoc} • {language === 'mr' ? 'अधिकृत स्थानिक डेटावर आधारित' : 'Official Ground Evidence'}
+              {activeLoc} • {language === 'mr' ? 'अधिकृत स्थानिक डेटावर आधारित' : language === 'hi' ? 'प्रमाणित स्थानीय डेटा पर आधारित' : 'Official Ground Evidence'}
             </p>
           </div>
 
@@ -112,11 +112,11 @@ export const WhatMovesCard: React.FC<WhatMovesCardProps> = ({ onNavigate }) => {
         {/* Opportunity List (Top 3-5) */}
         {loading ? (
           <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-            {language === 'mr' ? 'स्थानिक बाजारपेठ माहिती गोळा करत आहे...' : 'Scanning local market data...'}
+            {language === 'mr' ? 'स्थानिक बाजारपेठ माहिती गोळा करत आहे...' : language === 'hi' ? 'स्थानीय बाजार डेटा स्कैन हो रहा है...' : 'Scanning local market data...'}
           </div>
         ) : topItems.length === 0 ? (
           <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            {language === 'mr' ? 'माहिती उपलब्ध होत आहे. कृपया स्थानिक पातळीवर खात्री करा.' : 'Market signals are compiling. Verify locally.'}
+            {language === 'mr' ? 'माहिती उपलब्ध होत आहे. कृपया स्थानिक पातळीवर खात्री करा.' : language === 'hi' ? 'डेटा संकलित हो रहा है। कृपया स्थानीय स्तर पर पुष्टि करें।' : 'Market signals are compiling. Verify locally.'}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
@@ -174,8 +174,8 @@ export const WhatMovesCard: React.FC<WhatMovesCardProps> = ({ onNavigate }) => {
                       }}
                     >
                       {item.demandLevel === 'HIGH'
-                        ? language === 'mr' ? '🔥 जास्त मागणी' : '🔥 High Demand'
-                        : language === 'mr' ? 'मध्यम मागणी' : 'Moderate Demand'}
+                        ? language === 'mr' ? '🔥 जास्त मागणी' : language === 'hi' ? '🔥 भारी मांग' : '🔥 High Demand'
+                        : language === 'mr' ? 'मध्यम मागणी' : language === 'hi' ? 'मध्यम मांग' : 'Moderate Demand'}
                     </span>
 
                     <span
@@ -188,10 +188,10 @@ export const WhatMovesCard: React.FC<WhatMovesCardProps> = ({ onNavigate }) => {
                       }}
                     >
                       {item.competitionLevel === 'LOW'
-                        ? language === 'mr' ? '🟢 कमी स्पर्धा' : '🟢 Low Competition'
+                        ? language === 'mr' ? '🟢 कमी स्पर्धा' : language === 'hi' ? '🟢 कम प्रतिस्पर्धा' : '🟢 Low Competition'
                         : item.competitionLevel === 'MEDIUM'
-                        ? language === 'mr' ? '🟡 मध्यम स्पर्धा' : '🟡 Medium Competition'
-                        : language === 'mr' ? '🔴 जास्त स्पर्धा' : '🔴 High Competition'}
+                        ? language === 'mr' ? '🟡 मध्यम स्पर्धा' : language === 'hi' ? '🟡 मध्यम प्रतिस्पर्धा' : '🟡 Medium Competition'
+                        : language === 'mr' ? '🔴 जास्त स्पर्धा' : language === 'hi' ? '🔴 अधिक प्रतिस्पर्धा' : '🔴 High Competition'}
                     </span>
 
                     <span style={{ color: 'var(--text-muted)' }}>•</span>

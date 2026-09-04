@@ -20,13 +20,19 @@ interface FinancialManagerScreenProps {
 }
 
 export const FinancialManagerScreen: React.FC<FinancialManagerScreenProps> = ({ onNavigate }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { profile, updateProfile } = useUser();
   const [selectedTermKey, setSelectedTermKey] = useState<string | null>(null);
 
-  const plan = financeService.calculateFinancialStructure(profile.ownCapital || 100000);
+  const ownCap = profile.ownCapital || 100000;
+  const plan = financeService.calculateFinancialStructure(ownCap);
 
-  const voiceExplainer = `तुमच्याकडील ₹१,००,००० च्या स्वतःच्या भांडवलावर, १० टक्के मार्जिन मनीच्या नियमानुसार एकूण ₹१०,००,००० चा प्रकल्प उभारता येतो. यामध्ये ₹९,००,००० चे बँक कर्ज व शासकीय सबसिडी मिळू शकते.`;
+  const voiceExplainer =
+    language === 'mr'
+      ? `तुमच्याकडील ₹${ownCap.toLocaleString('en-IN')} च्या स्वतःच्या भांडवलावर, १० टक्के मार्जिन मनीच्या नियमानुसार एकूण ₹${plan.projectCost.toLocaleString('en-IN')} चा प्रकल्प उभारता येतो. यामध्ये ₹${plan.loanComponent.toLocaleString('en-IN')} चे बँक कर्ज व शासकीय सबसिडी मिळू शकते.`
+      : language === 'hi'
+      ? `आपकी ₹${ownCap.toLocaleString('en-IN')} की स्वयं की पूंजी पर, 10% मार्जिन मनी नियम के अनुसार कुल ₹${plan.projectCost.toLocaleString('en-IN')} की परियोजना स्थापित की जा सकती है। इसमें ₹${plan.loanComponent.toLocaleString('en-IN')} का बैंक ऋण व सरकारी सब्सिडी प्राप्त हो सकती है।`
+      : `With your ₹${ownCap.toLocaleString('en-IN')} own capital and 10% margin money norms, a total project of ₹${plan.projectCost.toLocaleString('en-IN')} can be established with ₹${plan.loanComponent.toLocaleString('en-IN')} in bank loan and eligible subsidies.`;
 
   return (
     <div className="screen-content animate-fade-in">
@@ -61,7 +67,7 @@ export const FinancialManagerScreen: React.FC<FinancialManagerScreenProps> = ({ 
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            भांडवल रचना (PS-91 Capital Structure)
+            {language === 'mr' ? 'भांडवल रचना (Capital Structure)' : language === 'hi' ? 'पूंजी संरचना (Capital Structure)' : 'Capital Structure'}
           </span>
           <DataTrustBadge trustInfo={plan.trustInfo} />
         </div>
@@ -80,7 +86,7 @@ export const FinancialManagerScreen: React.FC<FinancialManagerScreenProps> = ({ 
         >
           <div>
             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1E40AF' }}>
-              १. {t.finance.ownCapital}
+              1. {t.finance.ownCapital}
             </div>
             <div className="num-font" style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1D4ED8', marginTop: '2px' }}>
               ₹{plan.ownCapital.toLocaleString('en-IN')}
@@ -91,7 +97,7 @@ export const FinancialManagerScreen: React.FC<FinancialManagerScreenProps> = ({ 
             className="btn-simple-explain"
           >
             <BookOpen size={12} />
-            <span>मार्जिन मनी?</span>
+            <span>{language === 'en' ? 'Margin Money?' : 'मार्जिन मनी?'}</span>
           </button>
         </div>
 
@@ -116,14 +122,14 @@ export const FinancialManagerScreen: React.FC<FinancialManagerScreenProps> = ({ 
         >
           <div>
             <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#9A3412' }}>
-              २. {t.finance.projectCost}
+              2. {t.finance.projectCost}
             </div>
             <div className="num-font" style={{ fontSize: '1.5rem', fontWeight: 800, color: '#C2410C', marginTop: '2px' }}>
               ₹{plan.projectCost.toLocaleString('en-IN')}
             </div>
           </div>
           <div style={{ fontSize: '0.78rem', color: '#9A3412', fontWeight: 700 }}>
-            (१० पट प्रकल्प क्षमता)
+            {language === 'mr' ? '(१० पट प्रकल्प क्षमता)' : language === 'hi' ? '(10 गुना परियोजना क्षमता)' : '(10x Project Scale)'}
           </div>
         </div>
 
@@ -148,7 +154,7 @@ export const FinancialManagerScreen: React.FC<FinancialManagerScreenProps> = ({ 
         >
           <div>
             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#6B21A8' }}>
-              ३. {t.finance.loanComponent}
+              3. {t.finance.loanComponent}
             </div>
             <div className="num-font" style={{ fontSize: '1.35rem', fontWeight: 800, color: '#7C3AED', marginTop: '2px' }}>
               ₹{plan.loanComponent.toLocaleString('en-IN')}
@@ -156,7 +162,7 @@ export const FinancialManagerScreen: React.FC<FinancialManagerScreenProps> = ({ 
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '0.75rem', color: '#6B21A8', fontWeight: 700 }}>
-              संभाव्य सबसिडी: ₹{plan.subsidyEstimate.toLocaleString('en-IN')}
+              {language === 'mr' ? 'संभाव्य सबसिडी:' : language === 'hi' ? 'संभावित सब्सिडी:' : 'Eligible Subsidy:'} ₹{plan.subsidyEstimate.toLocaleString('en-IN')}
             </div>
           </div>
         </div>
@@ -186,7 +192,13 @@ export const FinancialManagerScreen: React.FC<FinancialManagerScreenProps> = ({ 
           className="btn-primary"
           style={{ width: '100%', minHeight: '52px', fontSize: '1.05rem', borderRadius: '16px' }}
         >
-          <span>कर्जाचा मासिक हप्ता (EMI) समजून घ्या</span>
+          <span>
+            {language === 'mr'
+              ? 'कर्जाचा मासिक हप्ता (EMI) समजून घ्या'
+              : language === 'hi'
+              ? 'ऋण की मासिक किस्त (EMI) समझें'
+              : 'Understand Monthly Loan Installment (EMI)'}
+          </span>
           <ChevronRight size={20} />
         </button>
 
@@ -195,7 +207,13 @@ export const FinancialManagerScreen: React.FC<FinancialManagerScreenProps> = ({ 
           className="btn-secondary"
           style={{ width: '100%', minHeight: '48px', borderRadius: '14px' }}
         >
-          <span>भांडवल वाटप तपशील पाहा (Budget Allocation)</span>
+          <span>
+            {language === 'mr'
+              ? 'भांडवल वाटप तपशील पाहा (Budget Allocation)'
+              : language === 'hi'
+              ? 'पूंजी आवंटन विवरण देखें (Budget Allocation)'
+              : 'View Capital Budget Allocation'}
+          </span>
         </button>
 
         <button
@@ -203,7 +221,13 @@ export const FinancialManagerScreen: React.FC<FinancialManagerScreenProps> = ({ 
           className="btn-secondary"
           style={{ width: '100%', minHeight: '48px', borderRadius: '14px' }}
         >
-          <span>व्यवसाय चालवणारा पैसा (Working Capital)</span>
+          <span>
+            {language === 'mr'
+              ? 'व्यवसाय चालवणारा पैसा (Working Capital)'
+              : language === 'hi'
+              ? 'व्यवसाय संचालन पूंजी (Working Capital)'
+              : 'Operational Working Capital'}
+          </span>
         </button>
       </div>
 

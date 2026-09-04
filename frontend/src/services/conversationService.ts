@@ -1,4 +1,4 @@
-import { ChatMessage, LanguageCode, UserProfile } from '../types';
+import { ChatMessage, LanguageCode, UserProfile, LiveAreaContext } from '../types';
 import { storageService } from './storageService';
 import { profileService } from './profileService';
 
@@ -95,7 +95,12 @@ export const conversationService = {
     return getDynamicSuggestedQuestions(lang, profile.desiredBusiness);
   },
 
-  async sendMessage(userText: string, lang: LanguageCode = 'en', isVoice = false): Promise<ChatMessage> {
+  async sendMessage(
+    userText: string,
+    lang: LanguageCode = 'en',
+    isVoice = false,
+    liveAreaContext?: LiveAreaContext | null
+  ): Promise<ChatMessage> {
     const history = this.getMessages(lang);
     const profile = profileService.getProfile();
 
@@ -123,7 +128,9 @@ export const conversationService = {
             userId: profile.id,
             capital: profile.ownCapital || 50000,
             location: profile.village ? `${profile.village}, ${profile.block || profile.district || ''}` : 'Local Area',
-            businessName: profile.desiredBusiness || 'Mobile & Electronics Repair'
+            businessName: profile.desiredBusiness || 'Mobile & Electronics Repair',
+            riskAppetite: profile.riskAppetite || 'MODERATE',
+            liveAreaContext: liveAreaContext || undefined
           }
         })
       });
@@ -173,6 +180,17 @@ export const conversationService = {
           : lang === 'hi'
           ? `आपके ${loc} में '${biz}' व्यवसाय के लिए प्रारंभिक स्तर पर नकद बिक्री और स्थानीय ग्राहकों से सीधा संपर्क बनाए रखना सबसे महत्वपूर्ण है।`
           : `For your '${biz}' enterprise in ${loc}, maintaining strict cash discipline, verified local demand, and low working capital credit is essential for long-term viability.`;
+    }
+
+    // Augment with Live Area Context if available
+    if (liveAreaContext) {
+      const compNotice =
+        lang === 'mr'
+          ? `\n\n📍 **स्थानिक वास्तव (Live Survey):** तुमच्या भागात सध्या ${liveAreaContext.competitorCount} प्रतिस्पर्धी आहेत. '${liveAreaContext.localObstacles}' या अडचणीवर मात करण्यासाठी सुरुवातीला कमी उधारी आणि दर्जेदार सेवेवर भर द्या.`
+          : lang === 'hi'
+          ? `\n\n📍 **जमीनी हकीकत (Live Survey):** आपके क्षेत्र में वर्तमान में ${liveAreaContext.competitorCount} प्रतिस्पर्धी हैं। '${liveAreaContext.localObstacles}' की चुनौती को देखते हुए बेहतर सेवा और नकद व्यवहार रखें।`
+          : `\n\n📍 **Live Ground Reconnaissance:** Identified ${liveAreaContext.competitorCount} local competitors and key bottleneck: '${liveAreaContext.localObstacles}'. Focus on prompt customer service and cash discipline.`;
+      fallbackText += compNotice;
     }
 
     const saathiReply: ChatMessage = {

@@ -3,33 +3,13 @@ import { TranslationSchema, DeepPartial } from './types';
 import { mr } from './mr';
 import { hi } from './hi';
 import { en } from './en';
-import { ta } from './ta';
-import { te } from './te';
-import { bn } from './bn';
-import { gu } from './gu';
-import { kn } from './kn';
-import { ml } from './ml';
-import { pa } from './pa';
-import { or } from './or';
-import { ur } from './ur';
-import { as } from './as';
 import { MASTER_LANGUAGES, getLanguageDefinition } from '../config/languages';
 
-// Raw dictionary collection
+// Raw dictionary collection for focused languages (Marathi, Hindi, English)
 const RAW_TRANSLATIONS: Record<string, DeepPartial<TranslationSchema>> = {
   mr,
   hi,
-  en,
-  ta,
-  te,
-  bn,
-  gu,
-  kn,
-  ml,
-  pa,
-  or,
-  ur,
-  as
+  en
 };
 
 /**

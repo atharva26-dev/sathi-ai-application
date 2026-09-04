@@ -10,12 +10,17 @@ interface BudgetManagerScreenProps {
 }
 
 export const BudgetManagerScreen: React.FC<BudgetManagerScreenProps> = ({ onNavigate }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { profile } = useUser();
   const projectCost = (profile.ownCapital || 100000) * 10;
   const categories = financeService.getBudgetAllocation(projectCost);
 
-  const voiceText = `तुमच्या ₹१० लाखांच्या एकूण भांडवलाचे वाटप: मशिनरीसाठी ४ लाख, शेडसाठी २ लाख, कच्च्या मालाच्या खेळत्या भांडवलासाठी अडीच लाख आणि आपत्कालीन राखीव १ लाख रुपये ठेवणे सर्वात सुरक्षित राहील.`;
+  const voiceText =
+    language === 'mr'
+      ? `तुमच्या एकूण भांडवलाचे वाटप: मशिनरीसाठी ४०%, शेडसाठी २०%, कच्च्या मालाच्या खेळत्या भांडवलासाठी २५% आणि आपत्कालीन राखीव १५% ठेवणे सर्वात सुरक्षित राहील.`
+      : language === 'hi'
+      ? `आपकी कुल पूंजी का आवंटन: मशीनरी के लिए 40%, शेड/दुकान के लिए 20%, कार्यशील पूंजी के लिए 25% और आपातकालीन बफर के लिए 15% रखना सबसे सुरक्षित रहेगा।`
+      : `Recommended capital allocation: 40% for machinery/equipment, 20% for premises, 25% for operational working capital, and 15% as emergency contingency.`;
 
   return (
     <div className="screen-content animate-fade-in">
@@ -23,10 +28,14 @@ export const BudgetManagerScreen: React.FC<BudgetManagerScreenProps> = ({ onNavi
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
         <div>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            भांडवल वाटप नियोजन (Budget)
+            {language === 'mr' ? 'भांडवल वाटप नियोजन (Budget)' : language === 'hi' ? 'पूंजी आवंटन योजना (Budget)' : 'Capital Budget Allocation'}
           </h2>
           <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            एकूण ₹{projectCost.toLocaleString('en-IN')} प्रकल्प खर्चाचे सुरक्षित वाटप
+            {language === 'mr'
+              ? `एकूण ₹${projectCost.toLocaleString('en-IN')} प्रकल्प खर्चाचे सुरक्षित वाटप`
+              : language === 'hi'
+              ? `कुल ₹${projectCost.toLocaleString('en-IN')} परियोजना लागत का सुरक्षित आवंटन`
+              : `Safe allocation of total ₹${projectCost.toLocaleString('en-IN')} project capital`}
           </p>
         </div>
 
@@ -75,7 +84,9 @@ export const BudgetManagerScreen: React.FC<BudgetManagerScreenProps> = ({ onNavi
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                 <span>{cat.description}</span>
-                <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{cat.percentage}% वाटा</span>
+                <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {language === 'mr' ? `${cat.percentage}% वाटा` : language === 'hi' ? `${cat.percentage}% हिस्सा` : `${cat.percentage}% share`}
+                </span>
               </div>
             </div>
           );
@@ -89,7 +100,9 @@ export const BudgetManagerScreen: React.FC<BudgetManagerScreenProps> = ({ onNavi
           className="btn-primary"
           style={{ flex: 2, minHeight: '48px', borderRadius: '14px' }}
         >
-          <span>🏦 सरकारी योजना व सबसिडी पाहा</span>
+          <span>
+            {language === 'mr' ? '🏦 सरकारी योजना व सबसिडी पाहा' : language === 'hi' ? '🏦 सरकारी योजनाएं व सब्सिडी देखें' : '🏦 View Schemes & Subsidies'}
+          </span>
           <ChevronRight size={18} />
         </button>
         <button
@@ -98,7 +111,7 @@ export const BudgetManagerScreen: React.FC<BudgetManagerScreenProps> = ({ onNavi
           style={{ flex: 1, minHeight: '48px', borderRadius: '14px' }}
         >
           <ArrowLeft size={16} />
-          <span>मागे</span>
+          <span>{t.common.back}</span>
         </button>
       </div>
     </div>

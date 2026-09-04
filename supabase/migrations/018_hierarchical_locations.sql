@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.locations (
     location_type TEXT NOT NULL CHECK (
         location_type IN (
             'STATE', 'UT', 'DISTRICT', 'SUBDISTRICT', 
-            'TALUKA', 'TEHSIL', 'MANDAL', 'BLOCK', 'VILLAGE', 'TOWN'
+            'TALUKA', 'TALUK', 'TEHSIL', 'MANDAL', 'BLOCK', 'VILLAGE', 'TOWN'
         )
     ),
     name TEXT NOT NULL,

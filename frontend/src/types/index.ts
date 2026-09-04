@@ -1,27 +1,4 @@
-export type LanguageCode =
-  | 'mr'
-  | 'hi'
-  | 'en'
-  | 'bn'
-  | 'ta'
-  | 'te'
-  | 'gu'
-  | 'kn'
-  | 'ml'
-  | 'or'
-  | 'pa'
-  | 'ur'
-  | 'as'
-  | 'ne'
-  | 'sa'
-  | 'sd'
-  | 'kok'
-  | 'mai'
-  | 'doi'
-  | 'brx'
-  | 'sat'
-  | 'ks'
-  | 'mni';
+export type LanguageCode = 'mr' | 'hi' | 'en';
 
 export type TrustLevel = 'VERIFIED' | 'USER_INPUT' | 'CALCULATED' | 'AI_ESTIMATE';
 
@@ -32,6 +9,17 @@ export interface DataTrustInfo {
   assumptions?: string[];
   evidence?: string[];
   lastUpdated?: string;
+}
+
+export interface LiveAreaContext {
+  competitorCount: number;
+  localObstacles: string;
+  dynamicAnswers: Array<{
+    questionId: string;
+    question: string;
+    answer: string;
+  }>;
+  collectedAt: string;
 }
 
 export interface LocationDetails {
@@ -64,6 +52,7 @@ export interface UserProfile {
   block: string;
   district: string;
   state: string;
+  pincode?: string;
   locationDetails?: LocationDetails;
   ownCapital: number; // in INR
   desiredBusiness?: string;
@@ -73,6 +62,7 @@ export interface UserProfile {
   availableAssets: string[]; // Land, Shop, Borewell, Vehicle, Cattle shed, etc.
   existingBusiness?: string;
   businessGoals?: string;
+  riskAppetite?: 'CONSERVATIVE' | 'MODERATE' | 'GROWTH';
   preferredLanguage: LanguageCode;
   isOnboarded: boolean;
   isDemo: boolean;

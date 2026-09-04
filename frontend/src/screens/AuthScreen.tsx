@@ -10,12 +10,18 @@ import {
   ShieldCheck,
   Sparkles,
   KeyRound,
-  CheckCircle2
+  CheckCircle2,
+  AlertTriangle,
+  Compass,
+  Activity,
+  Zap,
+  CloudRain
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useUser } from '../context/UserContext';
 import { CascadingLocationPicker } from '../components/location/CascadingLocationPicker';
+import { InlineCascadingLocationSelector } from '../components/location/InlineCascadingLocationSelector';
 import { LocationDetails } from '../types';
 
 interface AuthScreenProps {
@@ -41,8 +47,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [block, setBlock] = useState('Palus');
   const [pincode, setPincode] = useState('416310');
   const [isSelectingLocation, setIsSelectingLocation] = useState(false);
+  const [showFullGridPicker, setShowFullGridPicker] = useState(false);
   const [ownCapital, setOwnCapital] = useState('250000');
   const [desiredBusiness, setDesiredBusiness] = useState('Mobile & Electronics Repair');
+  const [riskAppetite, setRiskAppetite] = useState<'CONSERVATIVE' | 'MODERATE' | 'GROWTH'>('MODERATE');
+  const [showWhyAiModal, setShowWhyAiModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -59,7 +68,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
     const res = await login(mobile, pin);
     if (res.success && res.profile) {
-      updateProfile(res.profile);
+      updateProfile({
+        ...res.profile,
+        village: village || res.profile.village || 'Palus',
+        district: district || res.profile.district || 'Sangli',
+        block: block || res.profile.block || 'Palus',
+        state: stateName || res.profile.state || 'Maharashtra',
+        pincode: pincode || res.profile.pincode || '416310',
+        riskAppetite,
+        desiredBusiness: desiredBusiness || res.profile.desiredBusiness || 'Mobile & Electronics Repair',
+        ownCapital: parseInt(ownCapital, 10) || res.profile.ownCapital || 250000
+      });
       onAuthSuccess();
     } else {
       setErrorMsg(res.error || 'Login failed');
@@ -93,11 +112,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       pincode: pincode || '416310',
       ownCapital: parseInt(ownCapital, 10) || 250000,
       desiredBusiness: desiredBusiness || 'Mobile & Electronics Repair',
+      riskAppetite,
       preferredLanguage: language
     } as any);
 
     if (res.success && res.profile) {
-      updateProfile(res.profile);
+      updateProfile({
+        ...res.profile,
+        riskAppetite
+      });
       onAuthSuccess();
     } else {
       setErrorMsg(res.error || 'Registration failed');
@@ -105,15 +128,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   };
 
   return (
-    <div className="auth-screen-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-app, #f8fafc)', padding: '1.5rem 1rem' }}>
+    <div className="auth-screen-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-app, #f8fafc)', padding: '1.25rem 1rem' }}>
       {/* Top Bar with Language Switch */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', maxWidth: '480px', width: '100%', margin: '0 auto 1rem auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#fff', borderRadius: '10px', padding: '0.5rem', display: 'flex' }}>
-            <Sparkles size={20} />
+            <Sparkles size={22} />
           </div>
           <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary, #0f172a)' }}>साथी (SAATHI)</h2>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0, color: 'var(--text-primary, #0f172a)' }}>साथी (SAATHI)</h2>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #64748b)', margin: 0 }}>
               {language === 'en' ? 'Rural Business & Financial Mentor' : 'ग्रामीण व्यवसाय व वित्तीय मार्गदर्शक'}
             </p>
@@ -134,6 +157,77 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         >
           🌐 {language.toUpperCase()}
         </button>
+      </div>
+
+      {/* WHY AI ASSISTANT IS NEEDED AT START - HIGH IMPACT VALUE SHOWCASE */}
+      <div
+        style={{
+          maxWidth: '480px',
+          width: '100%',
+          margin: '0 auto 1.25rem auto',
+          background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+          color: '#ffffff',
+          borderRadius: '16px',
+          padding: '1.2rem',
+          boxShadow: '0 8px 24px rgba(15, 23, 42, 0.18)',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 700 }}>
+            <AlertTriangle size={13} />
+            {language === 'en' ? '70% RURAL BUSINESSES FAIL IN 18 MOS' : '७०% ग्रामीण व्यवसाय १८ महिन्यांत बंद पडतात'}
+          </div>
+          <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>RAG Pipeline v3.0</span>
+        </div>
+
+        <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 0.5rem 0', color: '#f8fafc', lineHeight: 1.35 }}>
+          {language === 'en'
+            ? 'Why You Need SAATHI AI Before Spending Any Money'
+            : 'भांडवल गुंतवण्यापूर्वी साथी AI सहाय्यक का आवश्यक आहे?'}
+        </h3>
+        <p style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.45, margin: '0 0 0.85rem 0' }}>
+          {language === 'en'
+            ? 'Most rural enterprises fail due to unverified local demand, power/road mismatches, and debt traps. SAATHI tests 20 official village parameters and 2026 monsoon rainfall first.'
+            : 'सामान्यतः ग्रामीण व्यवसाय ऐकीव माहितीवर सुरू केल्याने वीज तुटवडा, गिऱ्हाईक नसणे व सावकारी कर्जात अडकतात. साथी AI तुमच्या गावाच्या २० अधिकृत घटकांचे विश्लेषण करून खरी व्यवहार्यता सांगते.'}
+        </p>
+
+        {/* 3 Pillars */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: '0.75rem' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ color: '#38bdf8', marginBottom: '2px', display: 'flex', justifyContent: 'center' }}>
+              <Compass size={18} />
+            </div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f1f5f9' }}>
+              {language === 'en' ? 'Village Reality' : 'ग्राम वास्तव'}
+            </div>
+            <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>
+              {language === 'en' ? '20 Parameters' : '२० निकष तपासणी'}
+            </div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ color: '#facc15', marginBottom: '2px', display: 'flex', justifyContent: 'center' }}>
+              <CloudRain size={18} />
+            </div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f1f5f9' }}>
+              {language === 'en' ? 'Climate & Rain' : 'पाऊस व हवामान'}
+            </div>
+            <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>
+              {language === 'en' ? '2026 Monsoon' : '२०२६ पर्जन्यमान'}
+            </div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ color: '#4ade80', marginBottom: '2px', display: 'flex', justifyContent: 'center' }}>
+              <ShieldCheck size={18} />
+            </div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f1f5f9' }}>
+              {language === 'en' ? 'Safe Finance' : 'सुरक्षित वित्त'}
+            </div>
+            <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>
+              {language === 'en' ? '35% Subsidy' : '३५% सबसिडी'}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Main Card */}
@@ -226,6 +320,145 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               />
             </div>
 
+            {/* Business Location Selector for Login (State -> District -> Sub-District -> Village + PIN) */}
+            <div style={{ margin: '0.25rem 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <MapPin size={14} color="#EA580C" />
+                  {language === 'en' ? 'Business Location' : 'व्यवसायाचे स्थान'}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsSelectingLocation(!isSelectingLocation)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#EA580C',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: 0
+                  }}
+                >
+                  {isSelectingLocation
+                    ? (language === 'en' ? 'Hide Selector ▲' : 'लपवा ▲')
+                    : (language === 'en' ? 'Change Location ➔' : 'स्थान बदला ➔')}
+                </button>
+              </div>
+
+              {isSelectingLocation ? (
+                <InlineCascadingLocationSelector
+                  initialState={stateName}
+                  initialDistrict={district}
+                  initialSubDistrict={block}
+                  initialVillage={village}
+                  initialPincode={pincode}
+                  onLocationChange={(loc) => {
+                    setStateName(loc.state);
+                    setDistrict(loc.district);
+                    setBlock(loc.subDistrict);
+                    setVillage(loc.village);
+                    setPincode(loc.pincode);
+                  }}
+                />
+              ) : (
+                <div
+                  onClick={() => setIsSelectingLocation(true)}
+                  style={{
+                    padding: '0.65rem 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    backgroundColor: '#F8FAFC',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <MapPin size={16} color="#EA580C" />
+                    <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0F172A' }}>
+                      {village || 'Palus'}, {block || 'Palus'} ({district || 'Sangli'}, {stateName || 'Maharashtra'})
+                    </span>
+                  </div>
+                  {pincode && (
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0369A1', backgroundColor: '#E0F2FE', padding: '1px 6px', borderRadius: '4px' }}>
+                      PIN: {pincode}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Risk Appetite / Profile Selector for Login */}
+            <div style={{ margin: '0.4rem 0' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                <Activity size={14} style={{ display: 'inline', marginRight: '4px', color: '#6366f1' }} />
+                {language === 'en' ? 'Risk Appetite & Business Strategy' : 'जोखीम क्षमता व रणनीती (Risk Strategy)'}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.4rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setRiskAppetite('CONSERVATIVE')}
+                  style={{
+                    padding: '0.45rem 0.2rem',
+                    borderRadius: '8px',
+                    border: riskAppetite === 'CONSERVATIVE' ? '2px solid #16a34a' : '1px solid #cbd5e1',
+                    backgroundColor: riskAppetite === 'CONSERVATIVE' ? '#f0fdf4' : '#ffffff',
+                    cursor: 'pointer',
+                    textAlign: 'center'
+                  }}
+                >
+                  <div style={{ fontSize: '0.76rem', fontWeight: 700, color: riskAppetite === 'CONSERVATIVE' ? '#15803d' : '#334155' }}>
+                    🛡️ {language === 'en' ? 'Low Risk' : 'कमी जोखीम'}
+                  </div>
+                  <div style={{ fontSize: '0.62rem', color: '#64748b' }}>
+                    {language === 'en' ? 'Safe Return' : 'सुरक्षित नफा'}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRiskAppetite('MODERATE')}
+                  style={{
+                    padding: '0.45rem 0.2rem',
+                    borderRadius: '8px',
+                    border: riskAppetite === 'MODERATE' ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                    backgroundColor: riskAppetite === 'MODERATE' ? '#eff6ff' : '#ffffff',
+                    cursor: 'pointer',
+                    textAlign: 'center'
+                  }}
+                >
+                  <div style={{ fontSize: '0.76rem', fontWeight: 700, color: riskAppetite === 'MODERATE' ? '#1d4ed8' : '#334155' }}>
+                    ⚖️ {language === 'en' ? 'Moderate' : 'संतुलित'}
+                  </div>
+                  <div style={{ fontSize: '0.62rem', color: '#64748b' }}>
+                    {language === 'en' ? 'Balanced' : 'मध्यम नफा'}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRiskAppetite('GROWTH')}
+                  style={{
+                    padding: '0.45rem 0.2rem',
+                    borderRadius: '8px',
+                    border: riskAppetite === 'GROWTH' ? '2px solid #d97706' : '1px solid #cbd5e1',
+                    backgroundColor: riskAppetite === 'GROWTH' ? '#fffbeb' : '#ffffff',
+                    cursor: 'pointer',
+                    textAlign: 'center'
+                  }}
+                >
+                  <div style={{ fontSize: '0.76rem', fontWeight: 700, color: riskAppetite === 'GROWTH' ? '#b45309' : '#334155' }}>
+                    🚀 {language === 'en' ? 'Growth' : 'उच्च वाढ'}
+                  </div>
+                  <div style={{ fontSize: '0.62rem', color: '#64748b' }}>
+                    {language === 'en' ? 'Higher Scale' : 'विस्तार'}
+                  </div>
+                </button>
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={isLoading}
@@ -301,30 +534,30 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             {/* Business Location Selector (Cascading State -> District -> Taluka -> Village + PIN) */}
             <div style={{ margin: '0.25rem 0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <MapPin size={14} color="#EA580C" />
-                  {language === 'en' ? 'Business Location' : 'व्यवसायाचे स्थान'}
+                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <MapPin size={15} color="#EA580C" />
+                  {language === 'en' ? 'Business Location' : 'व्यवसायाचे स्थान (राज्य → जिल्हा → तालुका → गाव)'}
                 </label>
-                {!isSelectingLocation && (
-                  <button
-                    type="button"
-                    onClick={() => setIsSelectingLocation(true)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#EA580C',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      padding: 0
-                    }}
-                  >
-                    {language === 'en' ? 'Change Location ➔' : 'स्थान बदला ➔'}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setShowFullGridPicker(!showFullGridPicker)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#EA580C',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: 0
+                  }}
+                >
+                  {showFullGridPicker
+                    ? (language === 'en' ? 'Use Dropdowns ▲' : 'ड्रॉपडाउन निवडा ▲')
+                    : (language === 'en' ? 'Full Grid Mode ➔' : 'मोठ्या ग्रिडमध्ये निवडा ➔')}
+                </button>
               </div>
 
-              {isSelectingLocation ? (
+              {showFullGridPicker ? (
                 <div style={{
                   border: '1.5px solid #EA580C',
                   borderRadius: '12px',
@@ -338,7 +571,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     </span>
                     <button
                       type="button"
-                      onClick={() => setIsSelectingLocation(false)}
+                      onClick={() => setShowFullGridPicker(false)}
                       style={{
                         background: '#F1F5F9',
                         border: 'none',
@@ -350,7 +583,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                         cursor: 'pointer'
                       }}
                     >
-                      {language === 'en' ? 'Cancel' : 'रद्द करा'}
+                      {language === 'en' ? 'Close' : 'बंद करा'}
                     </button>
                   </div>
                   <CascadingLocationPicker
@@ -366,60 +599,25 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       setStateName(loc.state_name);
                       setBlock(loc.subdistrict_name);
                       setPincode(loc.pincode || '');
-                      setIsSelectingLocation(false);
+                      setShowFullGridPicker(false);
                     }}
                   />
                 </div>
               ) : (
-                <div
-                  onClick={() => setIsSelectingLocation(true)}
-                  style={{
-                    padding: '0.75rem 0.85rem',
-                    borderRadius: '10px',
-                    border: '1.5px solid #CBD5E1',
-                    backgroundColor: '#F8FAFC',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    transition: 'all 0.15s ease'
+                <InlineCascadingLocationSelector
+                  initialState={stateName}
+                  initialDistrict={district}
+                  initialSubDistrict={block}
+                  initialVillage={village}
+                  initialPincode={pincode}
+                  onLocationChange={(loc) => {
+                    setStateName(loc.state);
+                    setDistrict(loc.district);
+                    setBlock(loc.subDistrict);
+                    setVillage(loc.village);
+                    setPincode(loc.pincode);
                   }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '8px',
-                      backgroundColor: 'rgba(234, 88, 12, 0.1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <MapPin size={18} color="#EA580C" />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>{village || 'Palus'}</span>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 600, backgroundColor: '#E0F2FE', color: '#0369A1', padding: '1px 6px', borderRadius: '4px' }}>
-                          PIN: {pincode || '416310'}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '0.76rem', color: '#64748B', marginTop: '1px' }}>
-                        {block ? `${block}, ` : ''}{district || 'Sangli'}, {stateName || 'Maharashtra'}
-                      </div>
-                    </div>
-                  </div>
-                  <span style={{
-                    fontSize: '0.76rem',
-                    fontWeight: 700,
-                    color: '#EA580C',
-                    backgroundColor: 'rgba(234, 88, 12, 0.08)',
-                    padding: '4px 10px',
-                    borderRadius: '6px'
-                  }}>
-                    {language === 'en' ? 'Select' : 'निवडा'}
-                  </span>
-                </div>
+                />
               )}
             </div>
 
@@ -451,6 +649,75 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem' }}
                 required
               />
+            </div>
+
+            {/* Risk Appetite / Profile Selector for Register */}
+            <div style={{ margin: '0.4rem 0' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                <Activity size={14} style={{ display: 'inline', marginRight: '4px', color: '#6366f1' }} />
+                {language === 'en' ? 'Risk Appetite & Business Strategy' : 'जोखीम क्षमता व रणनीती (Risk Strategy)'}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.4rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setRiskAppetite('CONSERVATIVE')}
+                  style={{
+                    padding: '0.45rem 0.2rem',
+                    borderRadius: '8px',
+                    border: riskAppetite === 'CONSERVATIVE' ? '2px solid #16a34a' : '1px solid #cbd5e1',
+                    backgroundColor: riskAppetite === 'CONSERVATIVE' ? '#f0fdf4' : '#ffffff',
+                    cursor: 'pointer',
+                    textAlign: 'center'
+                  }}
+                >
+                  <div style={{ fontSize: '0.76rem', fontWeight: 700, color: riskAppetite === 'CONSERVATIVE' ? '#15803d' : '#334155' }}>
+                    🛡️ {language === 'en' ? 'Low Risk' : 'कमी जोखीम'}
+                  </div>
+                  <div style={{ fontSize: '0.62rem', color: '#64748b' }}>
+                    {language === 'en' ? 'Safe Return' : 'सुरक्षित नफा'}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRiskAppetite('MODERATE')}
+                  style={{
+                    padding: '0.45rem 0.2rem',
+                    borderRadius: '8px',
+                    border: riskAppetite === 'MODERATE' ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                    backgroundColor: riskAppetite === 'MODERATE' ? '#eff6ff' : '#ffffff',
+                    cursor: 'pointer',
+                    textAlign: 'center'
+                  }}
+                >
+                  <div style={{ fontSize: '0.76rem', fontWeight: 700, color: riskAppetite === 'MODERATE' ? '#1d4ed8' : '#334155' }}>
+                    ⚖️ {language === 'en' ? 'Moderate' : 'संतुलित'}
+                  </div>
+                  <div style={{ fontSize: '0.62rem', color: '#64748b' }}>
+                    {language === 'en' ? 'Balanced' : 'मध्यम नफा'}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRiskAppetite('GROWTH')}
+                  style={{
+                    padding: '0.45rem 0.2rem',
+                    borderRadius: '8px',
+                    border: riskAppetite === 'GROWTH' ? '2px solid #d97706' : '1px solid #cbd5e1',
+                    backgroundColor: riskAppetite === 'GROWTH' ? '#fffbeb' : '#ffffff',
+                    cursor: 'pointer',
+                    textAlign: 'center'
+                  }}
+                >
+                  <div style={{ fontSize: '0.76rem', fontWeight: 700, color: riskAppetite === 'GROWTH' ? '#b45309' : '#334155' }}>
+                    🚀 {language === 'en' ? 'Growth' : 'उच्च वाढ'}
+                  </div>
+                  <div style={{ fontSize: '0.62rem', color: '#64748b' }}>
+                    {language === 'en' ? 'Higher Scale' : 'विस्तार'}
+                  </div>
+                </button>
+              </div>
             </div>
 
             <button

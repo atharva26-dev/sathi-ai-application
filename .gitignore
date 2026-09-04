@@ -137,8 +137,12 @@ cypress/screenshots/
 .settings/
 
 # ------------------------------------------------------------------------------
-# 8. Operating System Artifacts
+# 8. Operating System & Language Cache Artifacts
 # ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
 .DS_Store
 .DS_Store?
 ._*

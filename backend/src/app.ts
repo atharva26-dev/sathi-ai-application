@@ -27,8 +27,8 @@ export const createApp = (): Express => {
     })
   );
 
-  app.use(express.json({ limit: '1mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  app.use(express.json({ limit: '15mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '15mb' }));
   app.use(correlationIdMiddleware);
 
   if (env.NODE_ENV !== 'test') {

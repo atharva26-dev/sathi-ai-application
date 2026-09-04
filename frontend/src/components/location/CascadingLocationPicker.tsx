@@ -41,6 +41,9 @@ export const CascadingLocationPicker: React.FC<CascadingLocationPickerProps> = (
 }) => {
   const { language } = useLanguage();
 
+  const stNameFallback = initialLocation?.state || 'Maharashtra';
+  const distNameFallback = initialLocation?.district || 'Sangli';
+
   // Selection states
   const [selectedState, setSelectedState] = useState<LocationState | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<LocationDistrict | null>(null);
@@ -102,7 +105,7 @@ export const CascadingLocationPicker: React.FC<CascadingLocationPickerProps> = (
     setCurrentStep(2);
 
     setIsLoading(true);
-    const distData = await locationService.getDistricts(st.code);
+    const distData = await locationService.getDistricts(st.name || st.code);
     setDistricts(distData);
     setIsLoading(false);
   };
@@ -116,7 +119,7 @@ export const CascadingLocationPicker: React.FC<CascadingLocationPickerProps> = (
     setCurrentStep(3);
 
     setIsLoading(true);
-    const sdData = await locationService.getSubDistricts(d.code);
+    const sdData = await locationService.getSubDistricts(d.name, selectedState?.name || stNameFallback);
     setSubDistricts(sdData);
     setIsLoading(false);
   };
@@ -129,7 +132,12 @@ export const CascadingLocationPicker: React.FC<CascadingLocationPickerProps> = (
     setCurrentStep(4);
 
     setIsLoading(true);
-    const vData = await locationService.getVillages(sd.code);
+    const vData = await locationService.getVillages(
+      sd.name,
+      '',
+      selectedState?.name || stNameFallback,
+      selectedDistrict?.name || distNameFallback
+    );
     setVillages(vData);
     setIsLoading(false);
   };
@@ -650,7 +658,7 @@ export const CascadingLocationPicker: React.FC<CascadingLocationPickerProps> = (
                     {v.nameNative[language as 'mr' | 'hi' | 'en'] || v.name}
                   </span>
                   <span style={{ fontSize: '0.74rem', color: '#64748B', marginTop: '2px' }}>
-                    PIN: {v.pincode}
+                    {v.pincode ? `PIN: ${v.pincode}` : (language === 'en' ? 'Village / Town' : 'गाव / शहर')}
                   </span>
                 </button>
               );

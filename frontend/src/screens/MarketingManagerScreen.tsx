@@ -18,10 +18,15 @@ interface MarketingManagerScreenProps {
 }
 
 export const MarketingManagerScreen: React.FC<MarketingManagerScreenProps> = ({ onNavigate }) => {
-  const { t } = useLanguage();
-  const channels = marketingService.getMarketingChannels();
+  const { t, language } = useLanguage();
+  const channels = marketingService.getMarketingChannels(language);
 
-  const voiceText = `ग्रामीण भागात सोशल मीडिया जाहिरातींऐवजी स्थानिक महामार्ग ढाब्यांना मोफत सॅम्पल देणे आणि गावच्या व्हॉट्सॲप ग्रुप्सवर सकाळी मेसेज पाठवणे हे सर्वात स्वस्त आणि जास्त ग्राहक देणारे मार्ग आहेत.`;
+  const voiceText =
+    language === 'mr'
+      ? `ग्रामीण भागात सोशल मीडिया जाहिरातींऐवजी स्थानिक महामार्ग ढाब्यांना मोफत सॅम्पल देणे आणि गावच्या व्हॉट्सॲप ग्रुप्सवर सकाळी मेसेज पाठवणे हे सर्वात स्वस्त आणि जास्त ग्राहक देणारे मार्ग आहेत.`
+      : language === 'hi'
+      ? `ग्रामीण व स्थानीय बाजार में सोशल मीडिया विज्ञापनों के बजाय स्थानीय हाईवे ढाबों को मुफ्त सैंपल देना और स्थानीय व्हाट्सएप ग्रुप्स पर संदेश भेजना सबसे किफायती व प्रभावी ग्राहक प्राप्ति मार्ग है।`
+      : `In rural markets, providing free tasting samples to highway dhabas and utilizing local community WhatsApp groups offer the lowest acquisition cost and highest repeat customer retention.`;
 
   return (
     <div className="screen-content animate-fade-in">
@@ -82,7 +87,7 @@ export const MarketingManagerScreen: React.FC<MarketingManagerScreenProps> = ({ 
                       {ch.title}
                     </h3>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      लक्षित ग्राहक: {ch.targetAudience}
+                      {language === 'mr' ? 'लक्षित ग्राहक:' : language === 'hi' ? 'लक्षित ग्राहक:' : 'Target Audience:'} {ch.targetAudience}
                     </div>
                   </div>
                 </div>
@@ -97,7 +102,9 @@ export const MarketingManagerScreen: React.FC<MarketingManagerScreenProps> = ({ 
                     borderRadius: '6px'
                   }}
                 >
-                  {ch.suitability === 'BEST' ? '⭐ सर्वोत्तम मार्ग' : 'चांगला मार्ग'}
+                  {ch.suitability === 'BEST'
+                    ? (language === 'mr' ? '⭐ सर्वोत्तम मार्ग' : language === 'hi' ? '⭐ सर्वोत्तम माध्यम' : '⭐ Best Route')
+                    : (language === 'mr' ? 'चांगला मार्ग' : language === 'hi' ? 'अच्छा माध्यम' : 'Good Route')}
                 </span>
               </div>
 
@@ -114,7 +121,7 @@ export const MarketingManagerScreen: React.FC<MarketingManagerScreenProps> = ({ 
                   marginBottom: '12px'
                 }}
               >
-                💡 <strong>फायदा:</strong> {ch.whyRecommended}
+                💡 <strong>{language === 'mr' ? 'फायदा:' : language === 'hi' ? 'लाभ:' : 'Key Benefit:'}</strong> {ch.whyRecommended}
               </div>
 
               {/* Practical Steps */}
@@ -133,7 +140,10 @@ export const MarketingManagerScreen: React.FC<MarketingManagerScreenProps> = ({ 
 
               {/* Cost badge */}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)', paddingTop: '8px', borderTop: '1px solid var(--border-light)' }}>
-                <span>अंदाजित खर्च: <strong style={{ color: 'var(--success)' }}>{ch.costEstimate}</strong></span>
+                <span>
+                  {language === 'mr' ? 'अंदाजित खर्च:' : language === 'hi' ? 'अनुमानित लागत:' : 'Estimated Cost:'}{' '}
+                  <strong style={{ color: 'var(--success)' }}>{ch.costEstimate}</strong>
+                </span>
               </div>
             </div>
           );
@@ -147,7 +157,9 @@ export const MarketingManagerScreen: React.FC<MarketingManagerScreenProps> = ({ 
           className="btn-primary"
           style={{ flex: 2, minHeight: '48px', borderRadius: '14px' }}
         >
-          <span>🏷️ योग्य विक्री दर कसा ठरवायचा?</span>
+          <span>
+            {language === 'mr' ? '🏷️ योग्य विक्री दर कसा ठरवायचा?' : language === 'hi' ? '🏷️ सही विक्रय मूल्य कैसे तय करें?' : '🏷️ Pricing Strategy & Margins'}
+          </span>
           <ChevronRight size={18} />
         </button>
         <button
@@ -156,7 +168,7 @@ export const MarketingManagerScreen: React.FC<MarketingManagerScreenProps> = ({ 
           style={{ flex: 1, minHeight: '48px', borderRadius: '14px' }}
         >
           <ArrowLeft size={16} />
-          <span>मुख्य पान</span>
+          <span>{t.navigation.home}</span>
         </button>
       </div>
     </div>

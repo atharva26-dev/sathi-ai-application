@@ -18,7 +18,24 @@ const chatMessageSchema = z.object({
       userId: z.string().optional(),
       capital: z.number().optional(),
       location: z.string().optional(),
-      businessName: z.string().optional()
+      businessName: z.string().optional(),
+      riskAppetite: z.enum(['CONSERVATIVE', 'MODERATE', 'GROWTH']).optional(),
+      liveAreaContext: z
+        .object({
+          competitorCount: z.number().optional(),
+          localObstacles: z.string().optional(),
+          dynamicAnswers: z
+            .array(
+              z.object({
+                questionId: z.string().optional(),
+                question: z.string(),
+                answer: z.string()
+              })
+            )
+            .optional(),
+          collectedAt: z.string().optional()
+        })
+        .optional()
     })
     .optional()
 });

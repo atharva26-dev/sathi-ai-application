@@ -2,8 +2,10 @@ import { SupportedLanguage } from '../config/constants.js';
 import { contextEngine, AssembledBusinessContext } from './context/contextEngine.js';
 import { geminiProvider } from './providers/geminiProvider.js';
 import { detectIntentAndSwitch } from './intentDetector.js';
-import { responseReviewer } from './validation/responseReviewer.js';
+import { responseReviewer, cleanAndFormatOutputText } from './validation/responseReviewer.js';
 import { SkillHandler, SkillExecutionResult, StructuredCardPayload } from './skills/skillTypes.js';
+
+import { villageBusinessPipeline } from './pipeline/villageBusinessPipeline.js';
 
 // Import specialized skills
 import { FinancialManagerSkill } from './skills/financialManagerSkill.js';
@@ -44,9 +46,16 @@ export class AiOrchestrator {
       capital?: number;
       location?: string;
       businessName?: string;
+      riskAppetite?: 'CONSERVATIVE' | 'MODERATE' | 'GROWTH';
+      liveAreaContext?: {
+        competitorCount?: number;
+        localObstacles?: string;
+        dynamicAnswers?: Array<{ question: string; answer: string }>;
+      };
     },
-    userId = '00000000-0000-0000-0000-000000000001'
+    userId: string = '00000000-0000-0000-0000-000000000001'
   ): Promise<OrchestratorResponse> {
+
     // 1. Initial intent and parameter extraction
     const initialBiz = userContext?.businessName || 'Mobile & Electronics Repair';
     const intentResult = detectIntentAndSwitch(message, initialBiz);
@@ -66,6 +75,104 @@ export class AiOrchestrator {
       lastIntent: intentResult.intent,
       selectedBusiness: activeBiz
     });
+
+    // 3.5 Check if query is village viability / 14-step pipeline request
+    const qLower = message.toLowerCase();
+    const isExplicitPipeline =
+      qLower.includes('vrs') ||
+      qLower.includes('bvms') ||
+      qLower.includes('readiness') ||
+      qLower.includes('तयारी गुणांक') ||
+      qLower.includes('व्यवहार्यता गुणांक') ||
+      qLower.includes('viability score') ||
+      qLower.includes('गाव तयारी');
+
+    const isVillageRecommendation =
+      (qLower.includes('गाव') || qLower.includes('गावा') || qLower.includes('village')) &&
+      (qLower.includes('कोणता व्यवसाय') ||
+        qLower.includes('व्यवसाय निवडावा') ||
+        qLower.includes('what business') ||
+        qLower.includes('which business') ||
+        qLower.includes('best business') ||
+        qLower.includes('recommend business'));
+
+    const isVillagePipelineQuery = isExplicitPipeline || isVillageRecommendation;
+
+    if (isVillagePipelineQuery) {
+      try {
+        const vHint =
+          context.localEvidencePackage?.villageContext?.villageName ||
+          (userContext?.location ? userContext.location.split(',')[0].trim() : undefined) ||
+          context.profile.village ||
+          'Kundal';
+        const dHint =
+          context.localEvidencePackage?.villageContext?.district ||
+          context.profile.district ||
+          'Sangli';
+
+        const pipelineOutput = await villageBusinessPipeline.execute(message, language, {
+          villageHint: vHint,
+          districtHint: dHint,
+          userCapital: context.financialBaseline.ownCapital,
+          riskAppetite: userContext?.riskAppetite || (context.profile as any)?.riskAppetite || 'MODERATE',
+          liveAreaContext: userContext?.liveAreaContext
+        });
+
+        if (pipelineOutput && pipelineOutput.rankedBusinesses.length > 0) {
+          const topBiz = pipelineOutput.rankedBusinesses[0];
+          const topBizName = (language === 'mr' ? topBiz.business.businessNative?.mr : language === 'hi' ? topBiz.business.businessNative?.hi : topBiz.business.business) || topBiz.business.business;
+
+          return {
+            answer: pipelineOutput.formattedTextResponse,
+            summary: `गाव तयारी (VRS: ${pipelineOutput.vrs.total_vrs}/100) — ${topBizName} (BVMS: ${topBiz.bvms})`,
+            voiceSpokenText: language === 'en'
+              ? `Based on ${pipelineOutput.villageName}'s Village Readiness Score of ${pipelineOutput.vrs.total_vrs} out of 100, the top business recommendation is ${topBiz.business.business} with a viability score of ${topBiz.bvms} from your available capital.`
+              : `तुमच्या उपलब्ध ₹${context.financialBaseline.ownCapital.toLocaleString('en-IN')} भांडवलातून ${pipelineOutput.villageName} गावाच्या १०० पैकी ${pipelineOutput.vrs.total_vrs} VRS तयारी गुणांकानुसार, '${topBizName}' हा व्यवसाय ${topBiz.bvms} BVMS गुणांकासह सर्वाधिक व्यवहार्य आहे.`,
+            cards: [
+              {
+                type: 'BUSINESS_FEASIBILITY',
+                title: `📍 ${pipelineOutput.villageName} (VRS: ${pipelineOutput.vrs.total_vrs}/100) — ${topBizName}`,
+                subtitle: `BVMS: ${topBiz.bvms} | भांडवल: ₹${topBiz.business.typical_project_cost.toLocaleString('en-IN')}`,
+                data: {
+                  projectCost: `₹${topBiz.business.typical_project_cost.toLocaleString('en-IN')}`,
+                  loanComponent: `₹${Math.round(topBiz.business.typical_project_cost * 0.9).toLocaleString('en-IN')} (PMEGP 35% पात्र)`,
+                  regularMonthlyEMI: `₹${Math.round(topBiz.business.typical_project_cost * 0.015).toLocaleString('en-IN')}/महिना`,
+                  breakEvenDailyUnits: `${(topBiz.infra_match * 100).toFixed(0)}% पायाभूत सुसंगतता`
+                },
+                actionText: 'सविस्तर आराखडा पहा',
+                actionRoute: '/business-plan'
+              }
+            ],
+            recommendations: pipelineOutput.rankedBusinesses.slice(0, 3).map(
+              (b) => `${(language === 'mr' ? b.business.businessNative?.mr : b.business.business)}: BVMS ${b.bvms} (${b.statusText})`
+            ),
+            risks: [
+              `पर्जन्यमान विचलन: ${pipelineOutput.vrs.d6_climate_resilience < 0.6 ? 'हंगामी पाऊस चढउतार नियंत्रण आवश्यक' : 'हवामान अनुकूल'}`,
+              'उधारीवर कडक नियंत्रण न ठेवल्यास खेळते भांडवल अडकण्याचा धोका.'
+            ],
+            assumptions: [
+              `गाव: ${pipelineOutput.villageName}`,
+              `VRS गुणांक: ${pipelineOutput.vrs.total_vrs}/100 (${pipelineOutput.vrs.tier} Readiness)`,
+              `माहिती स्तर: ${pipelineOutput.sourceAttribution.tierUsed}`
+            ],
+            sources: pipelineOutput.sourceAttribution.citations.map((c) => ({
+              title: `${c.title} (${c.sourceFile})`,
+              isOfficial: true
+            })),
+            suggestedNextQuestions: [
+              'माझ्या गावातील इंटरनेट व विजेची स्थिती काय आहे?',
+              'PMEGP ३५% सबसिडीसाठी अर्ज कसा करावा?',
+              'दुसऱ्या क्रमांकाचा व्यवसाय कसा निवडायचा?'
+            ],
+            trustLevel: 'CALCULATED',
+            confidenceScore: pipelineOutput.sourceAttribution.confidenceScore,
+            skillName: 'VILLAGE_BUSINESS_PIPELINE_V3'
+          };
+        }
+      } catch (pipeErr) {
+        // Fallback to standard handler if pipeline error
+      }
+    }
 
     // 4. Attempt primary Gemini 2-Pass Reasoning if available
     if (geminiProvider.isAvailable()) {
@@ -164,6 +271,17 @@ export class AiOrchestrator {
       result.sources = [
         { title: `SAATHI Domain Intelligence Engine (${activeBiz})`, isOfficial: true }
       ];
+    }
+
+    // Ensure output text is clean, free of raw markdown symbols, and structured in bullet points
+    result.answer = cleanAndFormatOutputText(result.answer);
+    result.summary = cleanAndFormatOutputText(result.summary);
+    result.voiceSpokenText = cleanAndFormatOutputText(result.voiceSpokenText);
+    if (result.recommendations) {
+      result.recommendations = result.recommendations.map((r) => cleanAndFormatOutputText(r));
+    }
+    if (result.risks) {
+      result.risks = result.risks.map((r) => cleanAndFormatOutputText(r));
     }
 
     return result;

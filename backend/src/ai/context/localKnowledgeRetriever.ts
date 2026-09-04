@@ -27,6 +27,7 @@ import { DISTRICT_DEMOGRAPHICS, DistrictDemographicData } from '../../domain/dat
 import { normalizeBusinessCategory } from '../../domain/businesses/businessCatalog.js';
 import { financeTools } from '../tools/financeTools.js';
 import { evaluateGovernmentSchemes } from '../../domain/schemes/schemeEvaluator.js';
+import { villageIntelligenceService, VillageIntelligenceRecord } from '../../services/villageIntelligenceService.js';
 
 export interface LocalEvidencePackage {
   location: LocationResolutionResult;
@@ -36,6 +37,28 @@ export interface LocalEvidencePackage {
     mr: string;
     hi: string;
     en: string;
+  };
+  villageContext?: {
+    villageCode: number;
+    villageName: string;
+    taluka: string;
+    district: string;
+    totalPopulation: number;
+    totalHouseholds: number;
+    malePopulation: number;
+    femalePopulation: number;
+    distanceToTownKm?: number | null;
+    nearestTownName?: string | null;
+    farmActivityHhs: number;
+    nonFarmActivityHhs: number;
+    domesticElectricityHours: number;
+    electricityMsme: boolean;
+    bankAvailable: boolean;
+    bankDistance?: string;
+    allWeatherRoad: boolean;
+    marketAvailable: boolean;
+    rainfall2026Status: string;
+    ruralMpceInr: number;
   };
   stateContext?: {
     stateName: string;
@@ -105,6 +128,13 @@ export class LocalKnowledgeRetriever {
 
     // 1. Resolve Location to Canonical LGD Entity
     const location = indiaGeographicMaster.resolveLocation(rawLoc);
+
+    // 1.5 Retrieve Ground Village Intelligence from Supabase Dataset
+    const villageIntel = await villageIntelligenceService.getVillageIntelligence({
+      villageName: location.village,
+      districtName: location.district,
+      subdistrictName: location.subDistrict
+    });
 
     // 2. Resolve Business Category to Taxonomy Archetype
     const catalogMatch = normalizeBusinessCategory(rawBiz);
@@ -206,11 +236,44 @@ export class LocalKnowledgeRetriever {
       recordDate: m.date
     }));
 
+    const resolvedGranularity = villageIntel ? ('Village' as const) : location.resolvedGranularity;
+    const geographicTransparencyNotice = villageIntel
+      ? {
+          mr: `अधिकृत ग्रामपातळी डेटा (Census व Mission Antyodaya): लोकसंख्या ${villageIntel.demographics.totalPopulation.toLocaleString('en-IN')}, कुटुंबसंख्या ${villageIntel.demographics.totalHouseholds.toLocaleString('en-IN')}, जवळचे शहर ${villageIntel.spatial.nearestTownName || 'तालुका केंद्र'} (${villageIntel.spatial.distanceToNearestTownKm || 10} किमी).`,
+          hi: `आधिकारिक ग्राम-स्तरीय आंकड़े (जनगणना व मिशन अंत्योदय): कुल जनसंख्या ${villageIntel.demographics.totalPopulation.toLocaleString('en-IN')}, परिवार ${villageIntel.demographics.totalHouseholds.toLocaleString('en-IN')}, निकटतम शहर ${villageIntel.spatial.nearestTownName || 'उप-जिला केंद्र'} (${villageIntel.spatial.distanceToNearestTownKm || 10} किमी)।`,
+          en: `Authoritative Village Dataset (Census & Mission Antyodaya): Total Population ${villageIntel.demographics.totalPopulation.toLocaleString('en-IN')}, Households ${villageIntel.demographics.totalHouseholds.toLocaleString('en-IN')}, Nearest Statutory Town ${villageIntel.spatial.nearestTownName || 'Sub-district HQ'} (${villageIntel.spatial.distanceToNearestTownKm || 10} km).`
+        }
+      : location.granularityNotice;
+
     return {
       location,
       businessArchetype: archetype,
-      resolvedGranularity: location.resolvedGranularity,
-      geographicTransparencyNotice: location.granularityNotice,
+      resolvedGranularity,
+      geographicTransparencyNotice,
+      villageContext: villageIntel
+        ? {
+            villageCode: villageIntel.villageCode,
+            villageName: villageIntel.villageName,
+            taluka: villageIntel.taluka,
+            district: villageIntel.district,
+            totalPopulation: villageIntel.demographics.totalPopulation,
+            totalHouseholds: villageIntel.demographics.totalHouseholds,
+            malePopulation: villageIntel.demographics.malePopulation,
+            femalePopulation: villageIntel.demographics.femalePopulation,
+            distanceToTownKm: villageIntel.spatial.distanceToNearestTownKm,
+            nearestTownName: villageIntel.spatial.nearestTownName,
+            farmActivityHhs: villageIntel.economy.farmActivityHhs,
+            nonFarmActivityHhs: villageIntel.economy.nonFarmActivityHhs,
+            domesticElectricityHours: villageIntel.infrastructure.domesticElectricityHours,
+            electricityMsme: villageIntel.infrastructure.electricityMsme,
+            bankAvailable: villageIntel.infrastructure.bankAvailable,
+            bankDistance: villageIntel.infrastructure.bankDistance,
+            allWeatherRoad: villageIntel.infrastructure.allWeatherRoad,
+            marketAvailable: villageIntel.infrastructure.marketAvailable,
+            rainfall2026Status: villageIntel.rainfall2026.seasonStatus,
+            ruralMpceInr: villageIntel.consumption.ruralMpceInr
+          }
+        : undefined,
       stateContext: stateProfile
         ? {
             stateName: stateProfile.stateName,

@@ -803,20 +803,32 @@ Start lean: Allocate 60% of available funds to essential tools and inventory, ke
 3. Strictly separate personal household expenses from your business cash register.`;
     }
 
+    const vil = context.localEvidencePackage?.villageContext;
+    let finalAnswer = answer;
+    if (vil && !finalAnswer.includes(vil.villageName)) {
+      const vHeader =
+        language === 'mr'
+          ? `📍 **अधिकृत ग्राम वास्तव (${vil.villageName}, जि. ${vil.district}):**\n• लोकसंख्या: **${vil.totalPopulation.toLocaleString('en-IN')}** (${vil.totalHouseholds.toLocaleString('en-IN')} कुटुंबे, ${vil.farmActivityHhs.toLocaleString('en-IN')} शेतकरी कुटुंबे)\n• जवळचे शहर: **${vil.nearestTownName || 'तालुका केंद्र'}** (${vil.distanceToTownKm || 10} किमी)\n• वीज व रस्ता: **${vil.domesticElectricityHours} तास** वीज, पक्का रस्ता: ${vil.allWeatherRoad ? 'उपलब्ध' : 'मर्यादित'}, आठवडी बाजार: ${vil.marketAvailable ? 'गावात उपलब्ध' : 'तालुका स्तरावर'}\n• सरासरी मासिक खर्च: **₹${vil.ruralMpceInr.toLocaleString('en-IN')}/व्यक्ती** (खर्च पाहणी २०२३)\n\n---\n\n`
+          : language === 'hi'
+          ? `📍 **आधिकारिक ग्राम आंकड़े (${vil.villageName}, जिला ${vil.district}):**\n• जनसंख्या: **${vil.totalPopulation.toLocaleString('en-IN')}** (${vil.totalHouseholds.toLocaleString('en-IN')} परिवार, ${vil.farmActivityHhs.toLocaleString('en-IN')} किसान परिवार)\n• निकटतम शहर: **${vil.nearestTownName || 'तहसील मुख्यालय'}** (${vil.distanceToTownKm || 10} किमी)\n• बिजली व सड़क: **${vil.domesticElectricityHours} घंटे** बिजली, पक्की सड़क: ${vil.allWeatherRoad ? 'उपलब्ध' : 'सीमित'}\n• औसत मासिक उपभोग व्यय: **₹${vil.ruralMpceInr.toLocaleString('en-IN')}/व्यक्ति** (खर्च सर्वेक्षण २०२३)\n\n---\n\n`
+          : `📍 **Authoritative Village Intelligence (${vil.villageName}, ${vil.district}):**\n• Total Population: **${vil.totalPopulation.toLocaleString('en-IN')}** (${vil.totalHouseholds.toLocaleString('en-IN')} households, ${vil.farmActivityHhs.toLocaleString('en-IN')} farming families)\n• Nearest Statutory Town: **${vil.nearestTownName || 'Taluka Hub'}** (${vil.distanceToTownKm || 10} km away)\n• Power & Infrastructure: **${vil.domesticElectricityHours} hrs** domestic electricity, All-weather road: ${vil.allWeatherRoad ? 'Connected' : 'Limited'}\n• Average Monthly Expenditure: **₹${vil.ruralMpceInr.toLocaleString('en-IN')}/person** (HCES 2022-23 benchmark)\n\n---\n\n`;
+      finalAnswer = vHeader + finalAnswer;
+    }
+
     return {
-      answer,
-      summary: `व्यवसाय आराखडा: ${userBiz} (${loc}) — ₹${cap.toLocaleString('en-IN')} भांडवल`,
+      answer: finalAnswer,
+      summary: vil ? `व्यवसाय आराखडा: ${userBiz} (${vil.villageName}, ${vil.district}) — लोकसंख्या ${vil.totalPopulation.toLocaleString('en-IN')}` : `व्यवसाय आराखडा: ${userBiz} (${loc}) — ₹${cap.toLocaleString('en-IN')} भांडवल`,
       voiceSpokenText:
         language === 'en'
-          ? `With ₹${cap.toLocaleString('en-IN')} capital, starting ${getLocalized(arch.titleNative, 'en') || userBiz} in ${loc} is practically viable. Allocate 60 percent to setup and keep 40 percent as liquid cash.`
+          ? `With ₹${cap.toLocaleString('en-IN')} capital, starting ${getLocalized(arch.titleNative, 'en') || userBiz} in ${vil?.villageName || loc} is practically viable. Allocate 60 percent to setup and keep 40 percent as liquid cash.`
           : language === 'hi'
-          ? `₹${cap.toLocaleString('en-IN')} पूंजी के साथ ${loc} में ${getLocalized(arch.titleNative, 'hi') || userBiz} शुरू करना संभव है। ६०% टूल्स में लगाएं और ४०% नकद रखें।`
-          : `तुमच्या ₹${cap.toLocaleString('en-IN')} भांडवलातून ${loc} परिसरात ${getLocalized(arch.titleNative, 'mr') || userBiz} सुरू करता येतो. ६०% रक्कम साधनांवर खर्च करा आणि ४०% रोख ठेवा.`,
+          ? `₹${cap.toLocaleString('en-IN')} पूंजी के साथ ${vil?.villageName || loc} में ${getLocalized(arch.titleNative, 'hi') || userBiz} शुरू करना संभव है। ६०% टूल्स में लगाएं और ४०% नकद रखें।`
+          : `तुमच्या ₹${cap.toLocaleString('en-IN')} भांडवलातून ${vil?.villageName || loc} परिसरात ${getLocalized(arch.titleNative, 'mr') || userBiz} सुरू करता येतो. ६०% रक्कम साधनांवर खर्च करा आणि ४०% रोख ठेवा.`,
       cards: [
         {
           type: 'BUSINESS_FEASIBILITY',
-          title: `💼 ${userBiz} — ${loc}`,
-          subtitle: `स्वतःचे भांडवल: ₹${cap.toLocaleString('en-IN')} | ब्रेक-इवन: ${beUnits} ${unitName}/दिवस`,
+          title: vil ? `💼 ${userBiz} — ${vil.villageName} (${vil.district})` : `💼 ${userBiz} — ${loc}`,
+          subtitle: vil ? `लोकसंख्या: ${vil.totalPopulation.toLocaleString('en-IN')} | भांडवल: ₹${cap.toLocaleString('en-IN')}` : `स्वतःचे भांडवल: ₹${cap.toLocaleString('en-IN')} | ब्रेक-इवन: ${beUnits} ${unitName}/दिवस`,
           data: {
             projectCost: formatIndianRupees(projCost),
             loanComponent: formatIndianRupees(loan),

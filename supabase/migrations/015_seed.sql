@@ -249,6 +249,22 @@ ON CONFLICT DO NOTHING;
 -- 7. DEMO USER PERSONA (Ramesh Patil - Baramati Dairy Enterprise)
 -- --------------------------------------------------------------------------
 
+-- Demo Auth User
+INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+VALUES (
+    '00000000-0000-0000-0000-000000000001',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    'demo_ramesh@saathi.internal',
+    '',
+    now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"full_name":"Ramesh Patil"}'::jsonb,
+    now(),
+    now()
+) ON CONFLICT (id) DO NOTHING;
+
 -- Demo Profile (Using deterministic UUID for demo isolation)
 INSERT INTO public.profiles (id, full_name, preferred_language, age_range, phone_metadata, is_demo, is_onboarded, metadata)
 VALUES (

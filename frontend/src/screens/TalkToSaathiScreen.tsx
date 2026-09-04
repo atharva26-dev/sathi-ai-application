@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Send, Volume2, RotateCcw, Sparkles, ChevronRight, AlertCircle, TrendingUp, IndianRupee, Landmark } from 'lucide-react';
+import { Mic, MicOff, Send, Volume2, RotateCcw, Sparkles, ChevronRight, AlertCircle, TrendingUp, IndianRupee, Landmark, MapPin } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useVoice } from '../context/VoiceContext';
 import { useUser } from '../context/UserContext';
 import { conversationService } from '../services/conversationService';
-import { ChatMessage, StructuredCardPayload } from '../types';
+import { ChatMessage, StructuredCardPayload, LiveAreaContext } from '../types';
 import { AudioExplainButton } from '../components/common/AudioExplainButton';
+import { LiveAreaSurveyModal } from '../components/chat/LiveAreaSurveyModal';
 
 interface TalkToSaathiScreenProps {
   onNavigate: (route: string) => void;
@@ -14,7 +15,8 @@ interface TalkToSaathiScreenProps {
 export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNavigate }) => {
   const { t, language } = useLanguage();
   const { profile } = useUser();
-  const { isListening, startListening, stopListening, transcript, clearTranscript, speak } = useVoice();
+  const { isListening, isProcessingVoice, startListening, stopListening, recordMicrophoneAudio, transcript, clearTranscript, speak } = useVoice();
+  const [activeVoiceStop, setActiveVoiceStop] = useState<(() => Promise<string>) | null>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     conversationService.getMessages(language)
@@ -22,6 +24,25 @@ export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNaviga
   const [inputText, setInputText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Live Area Survey Reconnaissance State (Saved per village/session)
+  const [liveAreaContext, setLiveAreaContext] = useState<LiveAreaContext | null>(() => {
+    const saved = localStorage.getItem('saathi_live_area_survey');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  // Automatically pop the 5 live area questions immediately when entering if not yet completed
+  const [showSurveyModal, setShowSurveyModal] = useState<boolean>(() => {
+    const saved = localStorage.getItem('saathi_live_area_survey');
+    return !saved;
+  });
 
   const suggestedQuestions = conversationService.getSuggestedQuestions(language);
 
@@ -49,7 +70,7 @@ export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNaviga
     setIsProcessing(true);
 
     try {
-      const response = await conversationService.sendMessage(messageContent, language, isVoice);
+      const response = await conversationService.sendMessage(messageContent, language, isVoice, liveAreaContext);
       setMessages([...conversationService.getMessages(language)]);
 
       // Auto speak the response for rural voice-first experience
@@ -63,19 +84,204 @@ export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNaviga
     }
   };
 
-  const handleVoiceToggle = () => {
+  const handleCompleteSurvey = (survey: LiveAreaContext) => {
+    setLiveAreaContext(survey);
+    localStorage.setItem('saathi_live_area_survey', JSON.stringify(survey));
+    setShowSurveyModal(false);
+
+    // Post acknowledgement message from SAATHI into conversation stream
+    const confirmationText =
+      language === 'mr'
+        ? `✅ **स्थानिक माहिती यशस्वीपणे नोंदवली!**\n• परिसरातील थेट स्पर्धक: **${survey.competitorCount} दुकाने**\n• मुख्य स्थानिक अडचण: **${survey.localObstacles}**\n• प्रत्यक्ष परिस्थिती: **${survey.dynamicAnswers[0].answer}**\n\nआता साथी AI तुमच्या प्रत्यक्ष गावातील माहितीवर आधारित १००% अचूक मार्गदर्शन करेल. तुम्ही कोणताही प्रश्न विचारू शकता!`
+        : language === 'hi'
+        ? `✅ **स्थानीय जानकारी सफलतापूर्वक दर्ज हो गई!**\n• क्षेत्र के प्रतिस्पर्धी: **${survey.competitorCount} दुकानें**\n• मुख्य स्थानीय समस्या: **${survey.localObstacles}**\n• जमीनी स्थिति: **${survey.dynamicAnswers[0].answer}**\n\nअब साथी AI आपके गांव की वास्तविक स्थिति के आधार पर सटीक सलाह देगा। अपना प्रश्न पूछें!`
+        : `✅ **Live Area Reconnaissance Recorded!**\n• Direct Local Competitors: **${survey.competitorCount} shops**\n• Key Local Obstacle: **${survey.localObstacles}**\n• Ground Factor: **${survey.dynamicAnswers[0].answer}**\n\nSAATHI AI will now provide grounded recommendations factoring in your local village reality. Ask anything!`;
+
+    const confirmationMsg: ChatMessage = {
+      id: 'survey_ack_' + Date.now(),
+      sender: 'saathi',
+      text: confirmationText,
+      timestamp: Date.now()
+    };
+
+    const currentList = conversationService.getMessages(language);
+    currentList.push(confirmationMsg);
+    conversationService.saveMessages(language, currentList);
+    setMessages([...currentList]);
+
+    speak(
+      language === 'mr'
+        ? 'स्थानिक माहिती नोंदवली आहे. आता विचारा तुमचा कोणताही प्रश्न.'
+        : language === 'hi'
+        ? 'स्थानीय जानकारी दर्ज कर ली गई है। अब अपना प्रश्न पूछें।'
+        : 'Live area information recorded. Ask your question now.'
+    );
+  };
+
+  const handleVoiceToggle = async () => {
     if (isListening) {
-      stopListening();
-      if (inputText.trim()) {
-        handleSend(inputText, true);
+      if (activeVoiceStop) {
+        try {
+          const res = await activeVoiceStop();
+          if (res.trim()) {
+            handleSend(res, true);
+          }
+        } catch {}
+        setActiveVoiceStop(null);
+      } else {
+        stopListening();
+        if (inputText.trim()) {
+          handleSend(inputText, true);
+        }
       }
     } else {
       clearTranscript();
       setInputText('');
-      startListening((result) => {
-        setInputText(result);
-      });
+      try {
+        const session = await recordMicrophoneAudio((res) => {
+          setInputText(res);
+        });
+        setActiveVoiceStop(() => session.stop);
+      } catch {
+        startListening((result) => {
+          setInputText(result);
+        });
+      }
     }
+  };
+
+  const renderCleanMessageText = (text: string, isSaathi: boolean) => {
+    if (!text) return null;
+
+    // Client-side fail-safe sanitizer for symbols & raw markdown
+    const cleaned = text
+      .replace(/\b(?:INR|Rs)\.?\s*(?=\d)/gi, '₹')
+      .replace(/\b(?:INR|Rs)\.\s*/gi, '₹')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/^[=\-_]{3,}\s*$/gm, '');
+
+    const rawLines = cleaned.split('\n');
+    const elements: React.ReactNode[] = [];
+
+    rawLines.forEach((line, idx) => {
+      let trimmed = line.trim();
+
+      if (!trimmed) {
+        elements.push(<div key={`space_${idx}`} style={{ height: '5px' }} />);
+        return;
+      }
+
+      // Strip any lingering markdown headers
+      if (/^#{1,6}\s+/.test(trimmed)) {
+        trimmed = trimmed.replace(/^#{1,6}\s+/, '').trim();
+        trimmed = trimmed.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}]\s*/u, '');
+        if (!trimmed.endsWith(':') && !trimmed.endsWith('?')) {
+          trimmed += ':';
+        }
+      }
+
+      // Strip bold & italic markers
+      trimmed = trimmed
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/__([^_]+)__/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/_([^_]+)_/g, '$1')
+        .replace(/\*\*/g, '')
+        .replace(/\*/g, '')
+        .replace(/~~([^~]+)~~/g, '$1')
+        .replace(/<[^>]+>/g, '');
+
+      // Check if Bullet Point (*, -, +, •)
+      if (/^[•*\-+]\s+/.test(trimmed)) {
+        const bulletContent = trimmed.replace(/^[•*\-+]\s+/, '').trim();
+        elements.push(
+          <div
+            key={`bullet_${idx}`}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px',
+              margin: '3px 0',
+              paddingLeft: '4px'
+            }}
+          >
+            <span
+              style={{
+                color: isSaathi ? 'var(--primary, #047857)' : '#FFFFFF',
+                fontWeight: 800,
+                fontSize: '1.05rem',
+                lineHeight: 1.3
+              }}
+            >
+              •
+            </span>
+            <span style={{ flex: 1, lineHeight: 1.55 }}>{bulletContent}</span>
+          </div>
+        );
+        return;
+      }
+
+      // Check if Numbered Step (1., 2.)
+      const numberMatch = trimmed.match(/^(\d+)[.)]\s+(.*)$/);
+      if (numberMatch) {
+        elements.push(
+          <div
+            key={`num_${idx}`}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px',
+              margin: '4px 0',
+              paddingLeft: '4px'
+            }}
+          >
+            <span
+              style={{
+                color: isSaathi ? 'var(--primary, #047857)' : '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '0.92rem',
+                minWidth: '20px',
+                lineHeight: 1.55
+              }}
+            >
+              {numberMatch[1]}.
+            </span>
+            <span style={{ flex: 1, lineHeight: 1.55 }}>{numberMatch[2]}</span>
+          </div>
+        );
+        return;
+      }
+
+      // Check if Section Header (ends with colon)
+      const isHeader = trimmed.endsWith(':') && trimmed.length < 70;
+      if (isHeader) {
+        elements.push(
+          <div
+            key={`header_${idx}`}
+            style={{
+              fontWeight: 700,
+              fontSize: '0.98rem',
+              marginTop: idx === 0 ? '0px' : '8px',
+              marginBottom: '4px',
+              color: isSaathi ? 'var(--text-primary, #111827)' : '#FFFFFF'
+            }}
+          >
+            {trimmed}
+          </div>
+        );
+        return;
+      }
+
+      // Regular Sentence / Paragraph
+      elements.push(
+        <div key={`para_${idx}`} style={{ margin: '3px 0', lineHeight: 1.55 }}>
+          {trimmed}
+        </div>
+      );
+    });
+
+    return elements;
   };
 
   const renderStructuredCard = (card: StructuredCardPayload, index: number) => {
@@ -130,6 +336,52 @@ export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNaviga
         backgroundColor: 'var(--bg-app)'
       }}
     >
+      {/* Live Area Reconnaissance Status Banner */}
+      <div
+        style={{
+          padding: '8px 16px',
+          backgroundColor: liveAreaContext ? '#F0FDF4' : '#EFF6FF',
+          borderBottom: `1.5px solid ${liveAreaContext ? '#BBF7D0' : '#BFDBFE'}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '0.82rem',
+          flexShrink: 0
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <MapPin size={16} color={liveAreaContext ? '#16A34A' : '#2563EB'} />
+          <div>
+            <span style={{ fontWeight: 800, color: liveAreaContext ? '#166534' : '#1E40AF' }}>
+              {language === 'en' ? 'Live Area Recon:' : 'थेट परिसर माहिती:'}{' '}
+            </span>
+            <span style={{ color: liveAreaContext ? '#15803D' : '#3B82F6', fontWeight: 600 }}>
+              {liveAreaContext
+                ? `${liveAreaContext.competitorCount} ${language === 'en' ? 'competitors' : 'स्पर्धक'} • ${liveAreaContext.localObstacles.slice(0, 28)}`
+                : (language === 'en' ? '5 area questions pending for 100% accuracy' : '५ सोपे प्रश्न शिल्लक आहेत')}
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowSurveyModal(true)}
+          style={{
+            background: liveAreaContext ? '#DCFCE7' : '#DBEAFE',
+            border: `1px solid ${liveAreaContext ? '#86EFAC' : '#93C5FD'}`,
+            borderRadius: '8px',
+            padding: '4px 10px',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            color: liveAreaContext ? '#15803D' : '#1D4ED8',
+            cursor: 'pointer'
+          }}
+        >
+          {liveAreaContext
+            ? (language === 'en' ? 'Edit Survey ✎' : 'माहिती बदला ✎')
+            : (language === 'en' ? 'Answer 5 Questions ➔' : 'माहिती भरा ➔')}
+        </button>
+      </div>
+
       {/* Messages Scroll Area */}
       <div
         style={{
@@ -190,10 +442,11 @@ export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNaviga
                   border: isSaathi ? '1.5px solid var(--border-medium)' : 'none',
                   boxShadow: 'var(--shadow-xs)',
                   fontSize: '0.98rem',
-                  lineHeight: 1.5
+                  lineHeight: 1.5,
+                  wordBreak: 'break-word'
                 }}
               >
-                {msg.text}
+                {renderCleanMessageText(msg.text, isSaathi)}
 
                 {/* Render Structured Cards if available */}
                 {msg.cards && msg.cards.map((card, idx) => renderStructuredCard(card, idx))}
@@ -353,6 +606,15 @@ export const TalkToSaathiScreen: React.FC<TalkToSaathiScreenProps> = ({ onNaviga
           <Send size={20} />
         </button>
       </div>
+
+      {/* 5-Question Live Area Reconnaissance Modal */}
+      <LiveAreaSurveyModal
+        isOpen={showSurveyModal}
+        onClose={() => setShowSurveyModal(false)}
+        onComplete={handleCompleteSurvey}
+        occupation={profile.desiredBusiness || 'Mobile & Electronics Repair'}
+        villageName={profile.village || 'तुमचे गाव'}
+      />
     </div>
   );
 };

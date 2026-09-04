@@ -10,14 +10,19 @@ interface PricingStrategyScreenProps {
 }
 
 export const PricingStrategyScreen: React.FC<PricingStrategyScreenProps> = ({ onNavigate }) => {
-  const { t } = useLanguage();
-  const pricing = marketingService.getPricingGuidance();
+  const { t, language } = useLanguage();
+  const pricing = marketingService.getPricingGuidance(language);
   const [testPrice, setTestPrice] = useState<number>(pricing.recommendedPrice);
 
   const profitPerUnit = testPrice - pricing.costPerUnit;
   const marginPercent = Math.round((profitPerUnit / testPrice) * 100);
 
-  const voiceText = `१ किलो पनीर तयार करण्यासाठी अंदाजे ₹२४५ खर्च येतो. बाजारात चालू भाव ₹३०० ते ₹३६० आहे. हॉटेल्सना ₹३१० आणि किरकोळ ₹३४० भाव ठेवल्यास तुम्हाला प्रति किलो ₹७५ चा उत्तम नफा राहील.`;
+  const voiceText =
+    language === 'mr'
+      ? `१ किलो पनीर तयार करण्यासाठी अंदाजे ₹२४५ खर्च येतो. बाजारात चालू भाव ₹३०० ते ₹३६० आहे. हॉटेल्सना ₹३१० आणि किरकोळ ₹३४० भाव ठेवल्यास तुम्हाला प्रति किलो ₹७५ चा उत्तम नफा राहील.`
+      : language === 'hi'
+      ? `1 किलो उत्पाद तैयार करने में लगभग ₹245 लागत आती है। बाजार में प्रचलित दर ₹300 से ₹360 है। ₹320 की अनुशंसित दर पर आपको प्रति किलो ₹75 (25%) का शुद्ध लाभ मिलेगा।`
+      : `Production cost is approximately ₹245 per unit. Current market prices range between ₹300 and ₹360. At the recommended ₹320 price point, you retain a healthy margin of ₹75 (25%) per unit.`;
 
   return (
     <div className="screen-content animate-fade-in">
@@ -58,68 +63,58 @@ export const PricingStrategyScreen: React.FC<PricingStrategyScreenProps> = ({ on
             trustInfo={{
               level: 'CALCULATED',
               confidenceScore: 90,
-              assumptions: ['५ लिटर दूध @ ₹३६ = ₹१८०', 'प्रक्रिया व वीज ₹६५']
+              evidence: ['स्थानिक भाव सर्वेक्षण', 'कच्चा माल खर्च प्रमाण'],
+              lastUpdated: '२०२६'
             }}
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '12px' }}>
-          <div className="num-font" style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--primary-dark)' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '14px' }}>
+          <span className="num-font" style={{ fontSize: '2.4rem', fontWeight: 900, color: 'var(--primary-dark)' }}>
             ₹{pricing.recommendedPrice}
-          </div>
-          <span style={{ fontSize: '0.92rem', color: 'var(--text-muted)' }}>प्रति किलो</span>
-          <span
-            style={{
-              marginLeft: 'auto',
-              padding: '4px 10px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: '#DCFCE7',
-              color: '#166534',
-              fontWeight: 800,
-              fontSize: '0.82rem'
-            }}
-          >
-            ₹{pricing.marginAtRecommended} नफा/किलो (२३.४%)
+          </span>
+          <span style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+            {language === 'mr' ? 'प्रति किलो' : language === 'hi' ? 'प्रति किलो' : 'per unit'}
           </span>
         </div>
 
-        {/* 3 Price Level Points */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', textAlign: 'center' }}>
-          <div style={{ padding: '8px', backgroundColor: 'var(--bg-app)', borderRadius: '10px' }}>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>तयार करायचा खर्च</div>
-            <div className="num-font" style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--danger)' }}>
+        {/* 3 Price Metrics */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+          <div style={{ padding: '10px 8px', backgroundColor: 'var(--bg-app)', borderRadius: '10px', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t.pricing.costPrice}</div>
+            <div className="num-font" style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
               ₹{pricing.costPerUnit}
             </div>
           </div>
 
-          <div style={{ padding: '8px', backgroundColor: 'var(--bg-app)', borderRadius: '10px' }}>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>बाजारातील भाव</div>
-            <div className="num-font" style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
-              ₹{pricing.competitorPriceRange.min} - {pricing.competitorPriceRange.max}
+          <div style={{ padding: '10px 8px', backgroundColor: 'var(--bg-app)', borderRadius: '10px', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t.pricing.profitMargin}</div>
+            <div className="num-font" style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--success)', marginTop: '2px' }}>
+              ₹{pricing.marginAtRecommended}
             </div>
           </div>
 
-          <div style={{ padding: '8px', backgroundColor: 'var(--bg-app)', borderRadius: '10px' }}>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>योग्य पट्टा</div>
-            <div className="num-font" style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--success)' }}>
-              ₹{pricing.suggestedPriceFloor} - {pricing.suggestedPriceCeiling}
+          <div style={{ padding: '10px 8px', backgroundColor: 'var(--bg-app)', borderRadius: '10px', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t.pricing.competitorBand}</div>
+            <div className="num-font" style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--primary-dark)', marginTop: '4px' }}>
+              ₹{pricing.competitorPriceRange.min}-{pricing.competitorPriceRange.max}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Practical Advice Tip Box */}
+      {/* Practical Strategy Tip */}
       <div
         className="saathi-card"
         style={{
-          padding: '14px',
+          padding: '16px',
           backgroundColor: '#FFF7ED',
-          border: '1px solid #FED7AA',
+          border: '1.5px solid #FED7AA',
           marginBottom: '20px'
         }}
       >
         <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#9A3412', marginBottom: '4px' }}>
-          💡 दोन प्रकारची विक्री रचना:
+          {language === 'mr' ? '💡 दोन प्रकारची विक्री रचना:' : language === 'hi' ? '💡 द्विस्तरीय मूल्य निर्धारण (Two-Tier Pricing):' : '💡 Two-Tier Pricing Strategy:'}
         </div>
         <p style={{ fontSize: '0.88rem', color: 'var(--text-primary)', lineHeight: 1.45 }}>
           {pricing.simpleTip}
@@ -129,14 +124,16 @@ export const PricingStrategyScreen: React.FC<PricingStrategyScreenProps> = ({ on
       {/* "What If" Price Adjustment Slider */}
       <div className="saathi-card" style={{ padding: '18px', marginBottom: '24px' }}>
         <h3 style={{ fontSize: '1.02rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '10px' }}>
-          दर कमी-जास्त करून नफा तपासा:
+          {language === 'mr' ? 'दर कमी-जास्त करून नफा तपासा:' : language === 'hi' ? 'मूल्य समायोजित करके लाभ जांचें:' : 'Simulate Custom Price & Profit:'}
         </h3>
 
         <div style={{ marginBottom: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>चाचणी विक्री दर:</span>
+            <span style={{ fontSize: '0.88rem', fontWeight: 700 }}>
+              {language === 'mr' ? 'चाचणी विक्री दर:' : language === 'hi' ? 'परीक्षण विक्रय मूल्य:' : 'Test Selling Price:'}
+            </span>
             <span className="num-font" style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary-dark)' }}>
-              ₹{testPrice} प्रति किलो
+              ₹{testPrice} {language === 'mr' ? 'प्रति किलो' : language === 'hi' ? 'प्रति किलो' : '/ unit'}
             </span>
           </div>
           <input
@@ -152,13 +149,17 @@ export const PricingStrategyScreen: React.FC<PricingStrategyScreenProps> = ({ on
 
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', backgroundColor: 'var(--bg-app)', borderRadius: '10px', marginTop: '10px' }}>
           <div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>प्रति किलो निव्वळ नफा:</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              {language === 'mr' ? 'प्रति किलो निव्वळ नफा:' : language === 'hi' ? 'प्रति इकाई शुद्ध लाभ:' : 'Net Profit Per Unit:'}
+            </div>
             <div className="num-font" style={{ fontSize: '1.1rem', fontWeight: 800, color: profitPerUnit > 0 ? 'var(--success)' : 'var(--danger)' }}>
               ₹{profitPerUnit}
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>नफा मार्जिन:</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              {language === 'mr' ? 'नफा मार्जिन:' : language === 'hi' ? 'लाभ मार्जिन:' : 'Margin Percentage:'}
+            </div>
             <div className="num-font" style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary-dark)' }}>
               {marginPercent}%
             </div>
@@ -173,7 +174,9 @@ export const PricingStrategyScreen: React.FC<PricingStrategyScreenProps> = ({ on
           className="btn-primary"
           style={{ flex: 2, minHeight: '48px', borderRadius: '14px' }}
         >
-          <span>🚀 व्यवसाय वाढवण्याचा रोडमॅप</span>
+          <span>
+            {language === 'mr' ? '🚀 व्यवसाय वाढवण्याचा रोडमॅप' : language === 'hi' ? '🚀 व्यवसाय विस्तार रोडमैप' : '🚀 Business Expansion Roadmap'}
+          </span>
           <ChevronRight size={18} />
         </button>
         <button
@@ -182,7 +185,7 @@ export const PricingStrategyScreen: React.FC<PricingStrategyScreenProps> = ({ on
           style={{ flex: 1, minHeight: '48px', borderRadius: '14px' }}
         >
           <ArrowLeft size={16} />
-          <span>मागे</span>
+          <span>{t.common.back}</span>
         </button>
       </div>
     </div>

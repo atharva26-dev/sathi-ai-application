@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Globe, CheckCircle, Search, Volume2 } from 'lucide-react';
+import React from 'react';
+import { Globe, CheckCircle, Volume2 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useVoice } from '../context/VoiceContext';
 import { LanguageCode } from '../types';
@@ -14,18 +14,7 @@ export const LanguageSelectScreen: React.FC<LanguageSelectScreenProps> = ({
 }) => {
   const { language, setLanguage, t } = useLanguage();
   const { speak } = useVoice();
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const filteredLanguages = MASTER_LANGUAGES.filter((l) => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      l.name.toLowerCase().includes(q) ||
-      l.nativeName.toLowerCase().includes(q) ||
-      l.region.toLowerCase().includes(q) ||
-      l.script.toLowerCase().includes(q)
-    );
-  });
+  const languagesList = MASTER_LANGUAGES;
 
   const handleSelect = (code: LanguageCode) => {
     setLanguage(code);
@@ -96,57 +85,24 @@ export const LanguageSelectScreen: React.FC<LanguageSelectScreenProps> = ({
         <div
           style={{
             marginTop: '20px',
-            marginBottom: '14px',
-            padding: '12px 16px',
+            marginBottom: '16px',
+            padding: '14px 18px',
             backgroundColor: '#FFFFFF',
             borderRadius: '16px',
             border: '1.5px solid var(--border-medium)',
             boxShadow: 'var(--shadow-sm)'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Globe size={22} color="var(--primary)" />
-              <div>
-                <h2 style={{ fontSize: '1.18rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
-                  Choose your language / अपनी भाषा चुनें
-                </h2>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  अपनी भाषा चुनें • तुमची भाषा निवडा • மொழியைத் தேர்ந்தெடுக்கவும்
-                </span>
-              </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Globe size={24} color="var(--primary)" />
+            <div>
+              <h2 style={{ fontSize: '1.22rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
+                {language === 'mr' ? 'तुमची भाषा निवडा' : language === 'hi' ? 'अपनी भाषा चुनें' : 'Choose Your Language'}
+              </h2>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+                मराठी • हिन्दी • English
+              </span>
             </div>
-          </div>
-
-          {/* Search Filter for quick access */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              backgroundColor: '#F8FAFC',
-              border: '1.5px solid #CBD5E1',
-              borderRadius: '12px',
-              padding: '8px 12px',
-              gap: '8px',
-              marginTop: '12px'
-            }}
-          >
-            <Search size={16} color="#64748B" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search / भाषा शोधा / மொழி தேடு..."
-              style={{
-                border: 'none',
-                outline: 'none',
-                background: 'transparent',
-                fontSize: '0.92rem',
-                width: '100%',
-                color: 'var(--text-primary)',
-                fontWeight: 600
-              }}
-            />
           </div>
         </div>
 
@@ -161,7 +117,7 @@ export const LanguageSelectScreen: React.FC<LanguageSelectScreenProps> = ({
             paddingRight: '4px'
           }}
         >
-          {filteredLanguages.map((lang) => {
+          {languagesList.map((lang) => {
             const isSelected = language === lang.code;
             return (
               <button

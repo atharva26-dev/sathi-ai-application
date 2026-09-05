@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { routeSchemeByProjectCost } from '../src/domain/finance/schemeRouter';
 
 describe('PS-91 Configurable Scheme Router & Boundary Conditions', () => {

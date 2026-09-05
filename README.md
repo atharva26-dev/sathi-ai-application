@@ -1,1 +1,0 @@
-# sathi-ai-application

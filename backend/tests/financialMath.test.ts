@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { calculateProjectCostStructure } from '../src/domain/finance/projectCostCalculator';
 import { calculateRepaymentSchedule } from '../src/domain/finance/emiCalculator';
 import { calculateBreakEven } from '../src/domain/finance/breakEvenCalculator';

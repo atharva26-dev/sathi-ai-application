@@ -1,3 +1,4 @@
+import { describe, it, expect, jest } from '@jest/globals';
 import { SUPPORTED_LANGUAGES } from '../src/config/constants.js';
 import { BACKEND_LANGUAGES, getBackendLanguage } from '../src/config/languages.js';
 import { responseReviewer } from '../src/ai/validation/responseReviewer.js';

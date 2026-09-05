@@ -58,14 +58,14 @@ async function runPersonaVerification() {
   );
 
   assert(p2Res.cards.length > 0, 'Persona 2 returns structured UI cards');
-  assert(p2Res.answer.includes('शिरूर') || p2Res.summary.includes('शिरूर') || p2Res.cards[0].subtitle.includes('शिरूर') || p2Res.cards[0].title.includes('शिरूर') || p2Res.answer.includes('ग्राहक'), 'Persona 2 references location or customer acquisition');
+  assert(p2Res.answer.includes('शिरूर') || p2Res.summary.includes('शिरूर') || p2Res.cards[0]?.subtitle?.includes('शिरूर') || p2Res.cards[0]?.title?.includes('शिरूर') || p2Res.answer.includes('ग्राहक'), 'Persona 2 references location or customer acquisition');
   assert(!p2Res.answer.includes('दूध') && !p2Res.answer.includes('पनीर'), 'Persona 2 (Tailoring) does not talk about milk or paneer');
 
   // Check dynamic market gap & competitors for Tailoring
   const p2Gaps = getMarketOpportunitiesForCluster('शिरूर, पुणे', 'tailoring');
-  assert(p2Gaps[0].name.toLowerCase().includes('tailor') || p2Gaps[0].id.includes('tailor'), 'Persona 2 market gap is specific to tailoring');
+  assert(p2Gaps[0]?.name?.toLowerCase().includes('tailor') || p2Gaps[0]?.id?.includes('tailor'), 'Persona 2 market gap is specific to tailoring');
   const p2Comps = getCompetitorsForCluster('शिरूर, पुणे', 'tailoring');
-  assert(p2Comps[0].category.toLowerCase().includes('tailor'), 'Persona 2 competitors are tailoring shops');
+  assert(p2Comps[0]?.category?.toLowerCase().includes('tailor'), 'Persona 2 competitors are tailoring shops');
 
   // --- PERSONA 3: Hindi User (Mobile & Electronics Repair in Gorakhpur, ₹40,000 capital) ---
   console.log('\n--- PERSONA 3: Hindi User (Mobile Repair in Gorakhpur, ₹40,000) ---');
@@ -87,7 +87,7 @@ async function runPersonaVerification() {
   assert(!p3Res.answer.includes('दूध') && !p3Res.answer.includes('पनीर'), 'Persona 3 (Mobile Repair) does not talk about dairy');
 
   const p3Gaps = getMarketOpportunitiesForCluster('गोरखपुर', 'mobile_repair');
-  assert(p3Gaps[0].id.includes('mobile') || p3Gaps[0].id.includes('repair') || p3Gaps[0].name.includes('Repair'), 'Persona 3 market gaps are specific to mobile repair');
+  assert(p3Gaps[0]?.id?.includes('mobile') || p3Gaps[0]?.id?.includes('repair') || p3Gaps[0]?.name?.includes('Repair'), 'Persona 3 market gaps are specific to mobile repair');
 
   // --- PERSONA 4: Custom Arbitrary User Business (Solar Pump Installation, ₹75,000) ---
   console.log('\n--- PERSONA 4: Custom Business (Solar Pump Installation in Solapur, ₹75,000) ---');
